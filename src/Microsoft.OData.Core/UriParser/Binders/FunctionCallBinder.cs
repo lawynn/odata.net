@@ -864,7 +864,7 @@ namespace Microsoft.OData.UriParser
                 // We only need to do this if the argument is a dotted identifier, because we need to convert it to a literal. If it is already a literal, we don't need to do anything.
                 if (arguments[i].ValueToken is DottedIdentifierToken dottedIdentifierToken && dottedIdentifierToken.Identifier[dottedIdentifierToken.Identifier.Length - 1] != '\'')
                 {
-                    //arguments[i] = new FunctionParameterToken(null, new LiteralToken(dottedIdentifierToken.Identifier, dottedIdentifierToken.Identifier));
+                    arguments[i] = new FunctionParameterToken(null, new LiteralToken(dottedIdentifierToken.Identifier, dottedIdentifierToken.Identifier));
                 }
             }
 
