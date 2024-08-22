@@ -232,9 +232,13 @@ namespace Microsoft.OData.UriParser
                 return boundFunction;
             }
 
+            // We need to convert DottedIdentifier args to Literal
+            // This is because the DottedIdentifier args are not bound to metadata yet, so we can't use them as arguments.
+            IEnumerable<FunctionParameterToken> functionCallArguments = this.ConvertDottedIdentifierArgumentsToLiterals(functionCallToken);
+
             // If there isn't, bind as Uri function
             // Bind all arguments
-            List<QueryNode> argumentNodes = new List<QueryNode>(functionCallToken.Arguments.Select(ar => this.bindMethod(ar)));
+            List<QueryNode> argumentNodes = new List<QueryNode>(functionCallArguments.Select(ar => this.bindMethod(ar)));
             return BindAsUriFunction(functionCallToken, argumentNodes);
         }
 
@@ -720,13 +724,22 @@ namespace Microsoft.OData.UriParser
                     ODataErrorStrings.MetadataBinder_CastOrIsOfExpressionWithWrongNumberOfOperands(args.Count));
             }
 
-            ConstantNode typeArgument = args.Last() as ConstantNode;
+            QueryNode queryNode = args.Last();
 
             IEdmTypeReference returnType = null;
-            if (typeArgument != null)
+            string typeArgumentFullName = null;
+
+            if (queryNode is SingleResourceCastNode singleResourceCastNode)
             {
-                returnType = TryGetTypeReference(state.Model, typeArgument.Value as string, state.Configuration.Resolver);
+                returnType = singleResourceCastNode.TypeReference;
+                typeArgumentFullName = returnType.FullName();
             }
+            else if (queryNode is ConstantNode constantNode)
+            {
+                typeArgumentFullName = constantNode.Value as string;
+                returnType = TryGetTypeReference(state.Model, typeArgumentFullName, state.Configuration.Resolver);
+            }
+
 
             if (returnType == null)
             {
@@ -758,7 +771,7 @@ namespace Microsoft.OData.UriParser
             {
                 // throw if cast enum to not-string :
                 if ((args[0].GetEdmTypeReference() is IEdmEnumTypeReference)
-                    && !string.Equals(typeArgument.Value as string, Microsoft.OData.Metadata.EdmConstants.EdmStringTypeName, StringComparison.Ordinal))
+                    && !string.Equals(typeArgumentFullName, Microsoft.OData.Metadata.EdmConstants.EdmStringTypeName, StringComparison.Ordinal))
                 {
                     throw new ODataException(ODataErrorStrings.CastBinder_EnumOnlyCastToOrFromString);
                 }
@@ -822,6 +835,40 @@ namespace Microsoft.OData.UriParser
             }
 
             return typeReference;
+        }
+
+        /// <summary>
+        /// Converts dotted identifier arguments to literal tokens for specific unbound functions (IsOf and Cast).
+        /// </summary>
+        /// <param name="functionCallToken">The function call token containing the arguments to be processed.</param>
+        /// <returns>A collection of function parameter tokens with dotted identifier arguments converted to literal tokens if needed.</returns>
+        /// <example>
+        /// isof(Property, Namespace.Type) -> isof(Property, 'Namespace.Type') // Convert dotted identifier to literal
+        /// isof(Namespace.Type) -> isof('Namespace.Type') // Convert dotted identifier to literal
+        /// cast(Property, Namespace.Type) -> cast(Property, 'Namespace.Type') // Convert dotted identifier to literal
+        /// cast(NS.Employee) -> cast('NS.Employee') // Convert dotted identifier to literal
+        /// </example>
+        private IEnumerable<FunctionParameterToken> ConvertDottedIdentifierArgumentsToLiterals(FunctionCallToken functionCallToken)
+        {
+            // If the function is not IsOf or Cast or if the function has only one argument, we don't need to do anything
+            if (functionCallToken.Arguments.Count() <= 1 && IsUnboundFunction(functionCallToken.Name) == null)
+            {
+                return functionCallToken.Arguments;
+            }
+
+            // If the function is IsOf or Cast, we need to convert the arguments to literals.
+            // This is because these arguments are type name, and we need to convert them to literals so that we can bind them to the correct type.
+            IList<FunctionParameterToken> arguments = functionCallToken.Arguments.ToList();
+            for (int i = 0; i < arguments.Count; i++)
+            {
+                // We only need to do this if the argument is a dotted identifier, because we need to convert it to a literal. If it is already a literal, we don't need to do anything.
+                if (arguments[i].ValueToken is DottedIdentifierToken dottedIdentifierToken && dottedIdentifierToken.Identifier[dottedIdentifierToken.Identifier.Length - 1] != '\'')
+                {
+                    //arguments[i] = new FunctionParameterToken(null, new LiteralToken(dottedIdentifierToken.Identifier, dottedIdentifierToken.Identifier));
+                }
+            }
+
+            return arguments;
         }
     }
 }
