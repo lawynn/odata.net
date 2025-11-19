@@ -5,9 +5,20 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <SignAssembly>True</SignAssembly>
+    <AssemblyOriginatorKeyFile>..\..\..\..\tools\StrongNamePublicKeys\testkey.snk</AssemblyOriginatorKeyFile>
+    <DelaySign>True</DelaySign>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Common\Client\ODataModelRef\CoreTerms.csdl" />
+    <None Remove="Common\Client\ODataModelRef\DeviceModelTerms.csdl" />
+    <None Remove="Common\Client\ODataModelRef\GPS.csdl" />
+    <None Remove="Common\Client\ODataModelRef\Location.csdl" />
+    <None Remove="Common\Client\ODataModelRef\Map.csdl" />
+    <None Remove="Common\Client\ODataModelRef\ODataModelRefServiceCsdl.xml" />
     <None Remove="Common\Client\Operations\OperationsServiceCsdl.xml" />
   </ItemGroup>
 
@@ -19,6 +30,24 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Common\Client\MultipleKeys\MultipleKeysEnumKeyServiceCsdl.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\ODataModelRef\CoreTerms.csdl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\ODataModelRef\DeviceModelTerms.csdl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\ODataModelRef\GPS.csdl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\ODataModelRef\Location.csdl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\ODataModelRef\Map.csdl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\ODataModelRef\ODataModelRefServiceCsdl.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Common\Client\OpenTypes\OpenTypesODataServiceCsdl.xml">
@@ -35,8 +64,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.OData" Version="9.1.1" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
-    <PackageReference Include="xunit" Version="2.9.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

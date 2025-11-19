@@ -395,7 +395,7 @@ namespace Microsoft.OData
             this.VerifyCanFlush(false);
 
             // Make sure we switch to writer state Error if an exception is thrown during flushing.
-            return this.InterceptExceptionAsync((thisParam) => thisParam.FlushAsynchronously());
+            return this.InterceptExceptionAsync(static (thisParam) => thisParam.FlushAsynchronously());
         }
 
         /// <summary>
@@ -501,7 +501,7 @@ namespace Microsoft.OData
         /// <param name="newState">The writer state to transition into.</param>
         protected void SetState(BatchWriterState newState)
         {
-            this.InterceptException((thisParam, newStateParam) => thisParam.ValidateTransition(newStateParam), newState);
+            this.InterceptException(static (thisParam, newStateParam) => thisParam.ValidateTransition(newStateParam), newState);
 
             this.state = newState;
         }
@@ -593,9 +593,15 @@ namespace Microsoft.OData
         /// <returns>A task that represents the asynchronous write operation.</returns>
         protected virtual Task WriteStartBatchImplementationAsync()
         {
-            return TaskUtils.GetTaskForSynchronousOperation(
-                (thisParam) => thisParam.WriteStartBatchImplementation(),
-                this);
+            try
+            {
+                this.WriteStartBatchImplementation();
+                return Task.CompletedTask;
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException(ex);
+            }
         }
 
         /// <summary>
@@ -604,9 +610,15 @@ namespace Microsoft.OData
         /// <returns>A task that represents the asynchronous write operation.</returns>
         protected virtual Task WriteEndBatchImplementationAsync()
         {
-            return TaskUtils.GetTaskForSynchronousOperation(
-                (thisParam) => thisParam.WriteEndBatchImplementation(),
-                this);
+            try
+            {
+                this.WriteEndBatchImplementation();
+                return Task.CompletedTask;
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException(ex);
+            }
         }
 
         /// <summary>
@@ -616,10 +628,15 @@ namespace Microsoft.OData
         /// <returns>A task that represents the asynchronous write operation.</returns>
         protected virtual Task WriteStartChangesetImplementationAsync(string groupOrChangesetId)
         {
-            return TaskUtils.GetTaskForSynchronousOperation(
-                (thisParam, groupOrChangesetIdParam) => thisParam.WriteStartChangesetImplementation(groupOrChangesetIdParam),
-                this,
-                groupOrChangesetId);
+            try
+            {
+                this.WriteStartChangesetImplementation(groupOrChangesetId);
+                return Task.CompletedTask;
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException(ex);
+            }
         }
 
         /// <summary>
@@ -628,9 +645,15 @@ namespace Microsoft.OData
         /// <returns>A task that represents the asynchronous write operation.</returns>
         protected virtual Task WriteEndChangesetImplementationAsync()
         {
-            return TaskUtils.GetTaskForSynchronousOperation(
-                (thisParam) => thisParam.WriteEndChangesetImplementation(),
-                this);
+            try
+            {
+                this.WriteEndChangesetImplementation();
+                return Task.CompletedTask;
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException(ex);
+            }
         }
 
         /// <summary>
@@ -652,13 +675,19 @@ namespace Microsoft.OData
             BatchPayloadUriOption payloadUriOption,
             IEnumerable<string> dependsOnIds)
         {
-            return TaskUtils.GetTaskForSynchronousOperation(
-                () => this.CreateOperationRequestMessageImplementation(
+            try
+            {
+                return Task.FromResult(this.CreateOperationRequestMessageImplementation(
                     method,
                     uri,
                     contentId,
                     payloadUriOption,
                     dependsOnIds));
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException<ODataBatchOperationRequestMessage>(ex);
+            }
         }
 
         /// <summary>
@@ -670,8 +699,14 @@ namespace Microsoft.OData
         /// that can be used to write the response operation.</returns>
         protected virtual Task<ODataBatchOperationResponseMessage> CreateOperationResponseMessageImplementationAsync(string contentId)
         {
-            return TaskUtils.GetTaskForSynchronousOperation(
-                () => this.CreateOperationResponseMessageImplementation(contentId));
+            try
+            {
+                return Task.FromResult(this.CreateOperationResponseMessageImplementation(contentId));
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException<ODataBatchOperationResponseMessage>(ex);
+            }
         }
 
         /// <summary>
@@ -813,11 +848,11 @@ namespace Microsoft.OData
         {
             if (!this.isInChangeset)
             {
-                this.InterceptException((thisParam) => thisParam.IncreaseBatchSize());
+                this.InterceptException(static (thisParam) => thisParam.IncreaseBatchSize());
             }
             else
             {
-                this.InterceptException((thisParam) => thisParam.IncreaseChangeSetSize());
+                this.InterceptException(static (thisParam) => thisParam.IncreaseChangeSetSize());
             }
 
             // Add a potential Content-ID header to the URL resolver so that it will be available
@@ -830,7 +865,7 @@ namespace Microsoft.OData
                 this.payloadUriConverter.AddContentId(this.currentOperationContentId);
             }
 
-            uri = this.InterceptException((thisParam, uriParam) =>
+            uri = this.InterceptException(static (thisParam, uriParam) =>
                 ODataBatchUtils.CreateOperationRequestUri(uriParam, thisParam.outputContext.MessageWriterSettings.BaseUri, thisParam.payloadUriConverter),
                 uri);
 
@@ -872,11 +907,11 @@ namespace Microsoft.OData
         {
             if (!this.isInChangeset)
             {
-                this.InterceptException((thisParam) => thisParam.IncreaseBatchSize());
+                this.InterceptException(static (thisParam) => thisParam.IncreaseBatchSize());
             }
             else
             {
-                this.InterceptException((thisParam) => thisParam.IncreaseChangeSetSize());
+                this.InterceptException(static (thisParam) => thisParam.IncreaseChangeSetSize());
             }
 
             // Add a potential Content-ID header to the URL resolver so that it will be available
@@ -889,7 +924,7 @@ namespace Microsoft.OData
                 this.payloadUriConverter.AddContentId(this.currentOperationContentId);
             }
 
-            uri = this.InterceptException((thisParam, uriParam) =>
+            uri = this.InterceptException(static (thisParam, uriParam) =>
                 ODataBatchUtils.CreateOperationRequestUri(uriParam, thisParam.outputContext.MessageWriterSettings.BaseUri, thisParam.payloadUriConverter),
                 uri);
 
@@ -922,7 +957,7 @@ namespace Microsoft.OData
 
             // reset the size of the current changeset and increase the size of the batch.
             this.ResetChangeSetSize();
-            this.InterceptException((thisParam) => thisParam.IncreaseBatchSize());
+            this.InterceptException(static (thisParam) => thisParam.IncreaseBatchSize());
             this.isInChangeset = true;
         }
 

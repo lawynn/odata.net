@@ -4,7 +4,7 @@
     <AssemblyName>Microsoft.OData.Client</AssemblyName>
     <RootNamespace>Microsoft.OData.Client</RootNamespace>
     <DocumentationFile>$(AssemblyName).xml</DocumentationFile>
-    <DefineConstants>$(DefineConstants);ODATA_CLIENT;SUPPRESS_PORTABLELIB_TARGETFRAMEWORK_ATTRIBUTE;DelaySignKeys</DefineConstants>
+    <DefineConstants>$(DefineConstants);ODATA_CLIENT;DelaySignKeys</DefineConstants>
    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
@@ -95,6 +95,7 @@
     <Compile Include="..\Microsoft.OData.Core\UriParser\SyntacticAst\SelectToken.cs" Link="ALinq\UriParser\SyntacticAst\SelectToken.cs" />
     <Compile Include="..\Microsoft.OData.Core\UriParser\SyntacticAst\StarToken.cs" Link="ALinq\UriParser\SyntacticAst\StarToken.cs" />
     <Compile Include="..\Microsoft.OData.Core\UriParser\SyntacticAst\SystemToken.cs" Link="ALinq\UriParser\SyntacticAst\SystemToken.cs" />
+    <Compile Include="..\Microsoft.OData.Core\UriParser\SyntacticAst\RootPathToken.cs" Link="ALinq\UriParser\SyntacticAst\RootPathToken.cs" />
     <Compile Include="..\Microsoft.OData.Core\UriParser\SyntacticAst\UnaryOperatorToken.cs" Link="ALinq\UriParser\SyntacticAst\UnaryOperatorToken.cs" />
     <Compile Include="..\Microsoft.OData.Core\UriParser\Aggregation\ApplyTransformationToken.cs" Link="ALinq\UriParser\Aggregation\ApplyTransformationToken.cs" />
     <Compile Include="..\Microsoft.OData.Core\UriParser\Aggregation\EntitySetAggregateToken.cs" Link="ALinq\UriParser\Aggregation\EntitySetAggregateToken.cs" />
@@ -122,10 +123,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="System.ComponentModel" Version="4.3.0" />
-    <PackageReference Include="System.ComponentModel.Annotations" Version="4.7.0" />
-    <PackageReference Include="System.Net.Http" Version="4.3.4" />
-    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
     <PackageReference Include="System.Security.Permissions" Version="9.0.1" />
   </ItemGroup>
   <ItemGroup>

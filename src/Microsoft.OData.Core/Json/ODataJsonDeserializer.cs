@@ -278,9 +278,12 @@ namespace Microsoft.OData.Json
             {
                 // If the Base uri string is http://odata.org/test
                 // The MetadataDocumentUri will be http://odata.org/test/$metadata
-                // If the contextUriAnnotation value is Customers(1)/Name or $metadata#Customers(1)/Name
+                // If the contextUriAnnotation value is Customers(1)/Name, $metadata#Customers(1)/Name, or ../$metadata#Customers(1)/Name
                 // The generated context uri will be http://odata.org/test/$metadata#Customers(1)/Name
                 ODataUri oDataUri = new ODataUri() { ServiceRoot = this.BaseUri };
+
+                contextUriAnnotationValue = contextUriAnnotationValue.TrimStart('/', '.');
+
                 contextUriAnnotationValue = contextUriAnnotationValue.StartsWith("$metadata#", StringComparison.OrdinalIgnoreCase)
                     ? this.BaseUri + contextUriAnnotationValue
                     : oDataUri.MetadataDocumentUri.ToString() + ODataConstants.ContextUriFragmentIndicator + contextUriAnnotationValue;
@@ -714,11 +717,9 @@ namespace Microsoft.OData.Json
             Debug.Assert(handlePropertyDelegate != null, $"{nameof(handlePropertyDelegate)} != null");
             this.AssertJsonCondition(JsonNodeType.Property);
 
-            Tuple<PropertyParsingResult, string> parsePropertyResult = await this.ParsePropertyAsync(
+            (PropertyParsingResult propertyParsingResult, string propertyName) = await this.ParsePropertyAsync(
                 propertyAndAnnotationCollector,
                 readPropertyAnnotationValueDelegate).ConfigureAwait(false);
-            PropertyParsingResult propertyParsingResult = parsePropertyResult.Item1;
-            string propertyName = parsePropertyResult.Item2;
 
             while (propertyParsingResult == PropertyParsingResult.CustomInstanceAnnotation && this.ShouldSkipCustomInstanceAnnotation(propertyName))
             {
@@ -729,11 +730,9 @@ namespace Microsoft.OData.Json
                 // Skip over the instance annotation value
                 await this.JsonReader.SkipValueAsync()
                     .ConfigureAwait(false);
-                parsePropertyResult = await this.ParsePropertyAsync(
+                (propertyParsingResult, propertyName) = await this.ParsePropertyAsync(
                     propertyAndAnnotationCollector,
                     readPropertyAnnotationValueDelegate).ConfigureAwait(false);
-                propertyParsingResult = parsePropertyResult.Item1;
-                propertyName = parsePropertyResult.Item2;
             }
 
             await handlePropertyDelegate(propertyParsingResult, propertyName)
@@ -1174,7 +1173,7 @@ namespace Microsoft.OData.Json
         /// 1) true if the annotation name and value is skipped; otherwise false.
         /// 2) The annotation value that was read.
         /// </returns>
-        private async ValueTask<Tuple<bool, object>> SkipOverUnknownODataAnnotationAsync(string annotationName)
+        private async ValueTask<(bool IsUnknownODataAnnotationName, object AnnotationValue)> SkipOverUnknownODataAnnotationAsync(string annotationName)
         {
             Debug.Assert(!string.IsNullOrEmpty(annotationName), "!string.IsNullOrEmpty(annotationName)");
             this.AssertJsonCondition(JsonNodeType.Property);
@@ -1189,7 +1188,7 @@ namespace Microsoft.OData.Json
                 isUnknownODataAnnotationName = true;
             }
 
-            return Tuple.Create(isUnknownODataAnnotationName, annotationValue);
+            return (isUnknownODataAnnotationName, annotationValue);
         }
 
         /// <summary>
@@ -1245,7 +1244,7 @@ namespace Microsoft.OData.Json
         /// 7). The first component contains EndOfObject if end of the object scope was reached and no properties are to be reported, while the second component contains null.
         ///                             This can only happen if there's a property annotation which is ignored (for example custom one) at the end of the object.
         /// </returns>
-        private async Task<Tuple<PropertyParsingResult, string>> ParsePropertyAsync(
+        private async Task<(PropertyParsingResult ParsingResult, string PropertyName)> ParsePropertyAsync(
             PropertyAndAnnotationCollector propertyAndAnnotationCollector,
             Func<string, Task<object>> readPropertyAnnotationValueDelegate)
         {
@@ -1269,7 +1268,7 @@ namespace Microsoft.OData.Json
                     await this.JsonReader.ReadAsync()
                         .ConfigureAwait(false);
                     parsedPropertyName = propertyNameFromReader;
-                    return Tuple.Create(PropertyParsingResult.NestedDeltaResourceSet, parsedPropertyName);
+                    return (PropertyParsingResult.NestedDeltaResourceSet, parsedPropertyName);
                 }
 
                 bool isInstanceAnnotation = false;
@@ -1293,7 +1292,7 @@ namespace Microsoft.OData.Json
                             parsedPropertyName));
                     }
 
-                    return Tuple.Create(PropertyParsingResult.PropertyWithoutValue, parsedPropertyName);
+                    return (PropertyParsingResult.PropertyWithoutValue, parsedPropertyName);
                 }
 
                 object annotationValue = null;
@@ -1308,11 +1307,11 @@ namespace Microsoft.OData.Json
                     // so ProcessPropertyAnnotationAsync() will test and fail for that case.
                     if (!ODataJsonReaderUtils.IsAnnotationProperty(propertyNameFromReader))
                     {
-                        Tuple<bool, object> skipOverUnknownODataAnnotationResult = await this.SkipOverUnknownODataAnnotationAsync(annotationNameFromReader)
-                            .ConfigureAwait(false);
-                        if (skipOverUnknownODataAnnotationResult.Item1)
+                        (bool isUnknownODataAnnotationName, object tempAnnotationValue) = await this.SkipOverUnknownODataAnnotationAsync(
+                            annotationNameFromReader).ConfigureAwait(false);
+                        if (isUnknownODataAnnotationName)
                         {
-                            annotationValue = skipOverUnknownODataAnnotationResult.Item2;
+                            annotationValue = tempAnnotationValue;
                             propertyAndAnnotationCollector.AddODataPropertyAnnotation(propertyNameFromReader, annotationNameFromReader, annotationValue);
                             continue;
                         }
@@ -1333,11 +1332,11 @@ namespace Microsoft.OData.Json
                 // If this is a unknown odata annotation, skip over it. See remark on the method SkipOverUnknownODataAnnotationAsync() for detailed explanation.
                 if (isInstanceAnnotation)
                 {
-                    Tuple<bool, object> skipOverUnknownODataAnnotationResult = await this.SkipOverUnknownODataAnnotationAsync(propertyNameFromReader)
-                        .ConfigureAwait(false);
-                    if (skipOverUnknownODataAnnotationResult.Item1)
+                    (bool isUnknownODataAnnotationName, object tempAnnotationValue) = await this.SkipOverUnknownODataAnnotationAsync(
+                        propertyNameFromReader).ConfigureAwait(false);
+                    if (isUnknownODataAnnotationName)
                     {
-                        annotationValue = skipOverUnknownODataAnnotationResult.Item2;
+                        annotationValue = tempAnnotationValue;
                         // collect 'odata.<unknown>' annotation:
                         // here we know the original property name contains no '@', but '.' dot
                         Debug.Assert(annotationNameFromReader == null, $"{nameof(annotationNameFromReader)} == null");
@@ -1354,13 +1353,13 @@ namespace Microsoft.OData.Json
 
                 if (!isInstanceAnnotation && ODataJsonUtils.IsMetadataReferenceProperty(propertyNameFromReader))
                 {
-                    return Tuple.Create(PropertyParsingResult.MetadataReferenceProperty, parsedPropertyName);
+                    return (PropertyParsingResult.MetadataReferenceProperty, parsedPropertyName);
                 }
 
                 if (!isInstanceAnnotation && !ODataJsonReaderUtils.IsAnnotationProperty(propertyNameFromReader))
                 {
                     // Normal property
-                    return Tuple.Create(PropertyParsingResult.PropertyWithValue, parsedPropertyName);
+                    return (PropertyParsingResult.PropertyWithValue, parsedPropertyName);
                 }
 
                 // collect 'xxx.yyyy' annotation:
@@ -1370,11 +1369,11 @@ namespace Microsoft.OData.Json
                 // Handle 'odata.XXXXX' annotations
                 if (isInstanceAnnotation && ODataJsonReaderUtils.IsODataAnnotationName(propertyNameFromReader))
                 {
-                    return Tuple.Create(PropertyParsingResult.ODataInstanceAnnotation, parsedPropertyName);
+                    return (PropertyParsingResult.ODataInstanceAnnotation, parsedPropertyName);
                 }
 
                 // Handle custom annotations
-                return Tuple.Create(PropertyParsingResult.CustomInstanceAnnotation, parsedPropertyName);
+                return (PropertyParsingResult.CustomInstanceAnnotation, parsedPropertyName);
             }
 
             this.AssertJsonCondition(JsonNodeType.EndObject);
@@ -1388,10 +1387,10 @@ namespace Microsoft.OData.Json
                             parsedPropertyName));
                 }
 
-                return Tuple.Create(PropertyParsingResult.PropertyWithoutValue, parsedPropertyName);
+                return (PropertyParsingResult.PropertyWithoutValue, parsedPropertyName);
             }
 
-            return Tuple.Create(PropertyParsingResult.EndOfObject, parsedPropertyName);
+            return (PropertyParsingResult.EndOfObject, parsedPropertyName);
         }
 
         /// <summary>
@@ -1412,7 +1411,7 @@ namespace Microsoft.OData.Json
             if (ODataJsonReaderUtils.IsAnnotationProperty(annotatedPropertyName)
                 && !string.Equals(annotationName, ODataAnnotationNames.ODataType, StringComparison.Ordinal))
             {
-                return TaskUtils.GetFaultedTask<ODataException>(
+                return Task.FromException<ODataException>(
                     new ODataException(Error.Format(SRResources.ODataJsonDeserializer_OnlyODataTypeAnnotationCanTargetInstanceAnnotation,
                         annotationName,
                         annotatedPropertyName,
@@ -1445,7 +1444,7 @@ namespace Microsoft.OData.Json
                 "Pre-Condition: JsonNodeType.EndOfInput if not reading a nested payload.");
             this.JsonReader.AssertNotBuffering();
 
-            return TaskUtils.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>

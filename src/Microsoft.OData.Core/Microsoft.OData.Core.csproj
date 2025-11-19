@@ -6,7 +6,7 @@
     <RootNamespace>Microsoft.OData.Core</RootNamespace>
 
     <DocumentationFile>$(AssemblyName).xml</DocumentationFile>
-    <DefineConstants>$(DefineConstants);ODATA_CORE;SUPPRESS_PORTABLELIB_TARGETFRAMEWORK_ATTRIBUTE;DelaySignKeys</DefineConstants>
+    <DefineConstants>$(DefineConstants);ODATA_CORE;DelaySignKeys</DefineConstants>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
@@ -17,10 +17,6 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors>$(WarningsAsErrors);RS0017;RS0025</WarningsAsErrors>
   </PropertyGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard1.1' ">
-    <PackageReference Include="System.ComponentModel" Version="4.3.0" />
-  </ItemGroup>
   
   <ItemGroup>
     <InternalsVisibleTo Include="Microsoft.OData.Core.Tests" />
@@ -47,10 +43,9 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="System.Buffers" Version="4.5.1" />
   </ItemGroup>
   
- <ItemGroup >
+ <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="6.0.3" />
   </ItemGroup>

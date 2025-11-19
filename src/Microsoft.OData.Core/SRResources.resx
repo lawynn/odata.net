@@ -1868,6 +1868,9 @@
   <data name="UriQueryExpressionParser_WithExpected" xml:space="preserve">
     <value>'with' expected at position {0} in '{1}'.</value>
   </data>
+  <data name="UriQueryExpressionParser_RootPathNotTopLevel" xml:space="preserve">
+    <value>$root should be the top-level segment.</value>
+  </data>
   <data name="UriQueryExpressionParser_UnrecognizedWithMethod" xml:space="preserve">
     <value>Unrecognized with '{0}' at '{1}' in '{2}'.</value>
   </data>
@@ -1973,6 +1976,12 @@
   <data name="MetadataBinder_BoundNodeCannotBeNull" xml:space="preserve">
     <value>A token of kind '{0}' was bound to the value null; this is invalid. A query token must always be bound to a non-null query node.</value>
   </data>
+  <data name="MetadataBinder_EmptyRootPath" xml:space="preserve">
+    <value>An empty root path is not valid.</value>
+  </data>
+  <data name="MetadataBinder_InvalidRootPath" xml:space="preserve">
+    <value>The $root literal can be used in expressions to refer to resources of the same service. It can be used as a single-valued expression or within complex or collection literals.</value>
+  </data>
   <data name="MetadataBinder_TopRequiresNonNegativeInteger" xml:space="preserve">
     <value>The value '{0}' is not a non-negative integer value. In OData, the $top query option must specify a non-negative integer value.</value>
   </data>
@@ -2036,6 +2045,9 @@
   <data name="ApplyBinder_AggregateExpressionNotSingleValue" xml:space="preserve">
     <value>$apply/aggregate expression '{0}' must evaluate to a single value.</value>
   </data>
+  <data name="ApplyBinder_AggregateExpressionNodeNotSupported" xml:space="preserve">
+    <value>$apply/aggregate expression node kind '{0}' is not supported.</value>
+  </data>
   <data name="ApplyBinder_GroupByPropertyNotPropertyAccessValue" xml:space="preserve">
     <value>$apply/groupby grouping expression '{0}' must evaluate to a property access value.</value>
   </data>
@@ -2044,6 +2056,9 @@
   </data>
   <data name="ApplyBinder_UnsupportedGroupByChild" xml:space="preserve">
     <value>$apply/groupby not support '{0}' as child transformation</value>
+  </data>
+  <data name="ApplyBinder_AggregateCollectionExpressionOnlySupportCustomMethod" xml:space="preserve">
+    <value>$apply/aggregate collection expression must apply to custom mothod.</value>
   </data>
   <data name="AggregateTransformationNode_UnsupportedAggregateExpressions" xml:space="preserve">
     <value>There are unsupported aggregation expressions in the transformation node.</value>
@@ -2602,5 +2617,11 @@
   </data>
   <data name="TypeUtils_TypeNameIsNotQualified" xml:space="preserve">
     <value>The value '{0}' is not a qualified type name. A qualified type name is expected.</value>
+  </data>
+  <data name="UriUtils_RequiresAbsoluteUri" xml:space="preserve">
+    <value>This operation is not supported for a relative URI. (parameter: '{0}').</value>
+  </data>
+  <data name="TaskUtils_NullContinuationTask" xml:space="preserve">
+    <value>The continuation task returned by the operation cannot be null.</value>
   </data>
 </root>

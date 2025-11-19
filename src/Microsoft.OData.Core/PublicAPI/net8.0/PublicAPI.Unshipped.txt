@@ -1,11 +1,7 @@
-Microsoft.OData.UriParser.PathCountSelectItem
-Microsoft.OData.UriParser.PathCountSelectItem.Filter.get -> Microsoft.OData.UriParser.FilterClause
-Microsoft.OData.UriParser.PathCountSelectItem.NavigationSource.get -> Microsoft.OData.Edm.IEdmNavigationSource
-Microsoft.OData.UriParser.PathCountSelectItem.PathCountSelectItem(Microsoft.OData.UriParser.ODataSelectPath selectedPath) -> void
-Microsoft.OData.UriParser.PathCountSelectItem.PathCountSelectItem(Microsoft.OData.UriParser.ODataSelectPath selectedPath, Microsoft.OData.Edm.IEdmNavigationSource navigationSource, Microsoft.OData.UriParser.FilterClause filter, Microsoft.OData.UriParser.SearchClause search) -> void
-Microsoft.OData.UriParser.PathCountSelectItem.Search.get -> Microsoft.OData.UriParser.SearchClause
-Microsoft.OData.UriParser.PathCountSelectItem.SelectedPath.get -> Microsoft.OData.UriParser.ODataSelectPath
-override Microsoft.OData.UriParser.PathCountSelectItem.HandleWith(Microsoft.OData.UriParser.SelectItemHandler handler) -> void
-override Microsoft.OData.UriParser.PathCountSelectItem.TranslateWith<T>(Microsoft.OData.UriParser.SelectItemTranslator<T> translator) -> T
-virtual Microsoft.OData.UriParser.SelectItemHandler.Handle(Microsoft.OData.UriParser.PathCountSelectItem item) -> void
-virtual Microsoft.OData.UriParser.SelectItemTranslator<T>.Translate(Microsoft.OData.UriParser.PathCountSelectItem item) -> T
+Microsoft.OData.UriParser.Aggregation.AggregateCollectionExpression
+Microsoft.OData.UriParser.Aggregation.AggregateCollectionExpression.AggregateCollectionExpression(Microsoft.OData.UriParser.CollectionNode expression, Microsoft.OData.UriParser.Aggregation.AggregationMethodDefinition methodDefinition, string alias, Microsoft.OData.Edm.IEdmTypeReference typeReference) -> void
+Microsoft.OData.UriParser.Aggregation.AggregateCollectionExpression.Expression.get -> Microsoft.OData.UriParser.CollectionNode
+Microsoft.OData.UriParser.Aggregation.AggregateCollectionExpression.Method.get -> Microsoft.OData.UriParser.Aggregation.AggregationMethod
+Microsoft.OData.UriParser.Aggregation.AggregateCollectionExpression.MethodDefinition.get -> Microsoft.OData.UriParser.Aggregation.AggregationMethodDefinition
+Microsoft.OData.UriParser.Aggregation.AggregateCollectionExpression.TypeReference.get -> Microsoft.OData.Edm.IEdmTypeReference
+Microsoft.OData.UriParser.Aggregation.AggregateExpressionKind.CollectionPropertyAggregate = 3 -> Microsoft.OData.UriParser.Aggregation.AggregateExpressionKind

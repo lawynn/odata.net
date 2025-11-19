@@ -145,7 +145,7 @@ namespace Microsoft.OData
         {
             this.VerifyCanRead(true);
 
-            return this.InterceptException((thisParam) => thisParam.ReadSynchronously());
+            return this.InterceptException(static (thisParam) => thisParam.ReadSynchronously());
         }
 
         /// <summary>
@@ -156,7 +156,7 @@ namespace Microsoft.OData
         {
             this.VerifyCanRead(false);
 
-            return this.InterceptExceptionAsync((thisParam) => thisParam.ReadAsynchronously());
+            return this.InterceptExceptionAsync(static (thisParam) => thisParam.ReadAsynchronously());
         }
 
         /// <summary>
@@ -232,7 +232,14 @@ namespace Microsoft.OData
         protected virtual Task<bool> ReadAsynchronously()
         {
             // Use synchronous read and then return a completed task
-            return TaskUtils.GetTaskForSynchronousOperation<bool>(this.ReadImplementation);
+            try
+            {
+                return Task.FromResult(this.ReadImplementation());
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException<bool>(ex);
+            }
         }
 
         /// <summary>

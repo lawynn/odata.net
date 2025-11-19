@@ -77,6 +77,13 @@ namespace Microsoft.OData.Tests.UriParser
             NonFlagShapeType.AddMember("Triangle", new EdmEnumMemberValue(2));
             NonFlagShapeType.AddMember("foursquare", new EdmEnumMemberValue(3));
             model.AddElement(NonFlagShapeType);
+
+            var addressTypeEnum = new EdmEnumType("Fully.Qualified.Namespace", "AddressType");
+            addressTypeEnum.AddMember(new EdmEnumMember(addressTypeEnum, "Home", new EdmEnumMemberValue(0)));
+            addressTypeEnum.AddMember(new EdmEnumMember(addressTypeEnum, "Work", new EdmEnumMemberValue(1)));
+            addressTypeEnum.AddMember(new EdmEnumMember(addressTypeEnum, "Other", new EdmEnumMemberValue(2)));
+            model.AddElement(addressTypeEnum);
+            var addressTypeEnumReference = new EdmEnumTypeReference(addressTypeEnum, false);
             #endregion
 
             #region Structured Types
@@ -350,6 +357,7 @@ namespace Microsoft.OData.Tests.UriParser
             FullyQualifiedNamespaceAddress.AddStructuralProperty("City", EdmCoreModel.Instance.GetString(true));
             FullyQualifiedNamespaceAddress.AddStructuralProperty("NextHome", FullyQualifiedNamespaceAddressTypeReference);
             FullyQualifiedNamespaceAddress.AddStructuralProperty("MyNeighbors", new EdmCollectionTypeReference(new EdmCollectionType(EdmCoreModel.Instance.GetString(true))));
+            FullyQualifiedNamespaceAddress.AddStructuralProperty("AddressType", addressTypeEnumReference);
             FullyQualifiedNamespaceAddress.AddUnidirectionalNavigation(new EdmNavigationPropertyInfo { Name = "PostBoxPainting", TargetMultiplicity = EdmMultiplicity.ZeroOrOne, Target = FullyQualifiedNamespacePainting });
             model.AddElement(FullyQualifiedNamespaceAddress);
 
@@ -741,6 +749,7 @@ namespace Microsoft.OData.Tests.UriParser
             var FullyQualifiedNamespaceContextPet4Set = FullyQualifiedNamespaceContext.AddEntitySet("Pet4Set", FullyQualifiedNamespacePet4);
             var FullyQualifiedNamespaceContextPet5Set = FullyQualifiedNamespaceContext.AddEntitySet("Pet5Set", FullyQualifiedNamespacePet5);
             var FullyQualifiedNamespaceContextPet6Set = FullyQualifiedNamespaceContext.AddEntitySet("Pet6Set", FullyQualifiedNamespacePet6);
+            var FullyQualifiedNamespaceContextFilmSet = FullyQualifiedNamespaceContext.AddEntitySet("Films", FullyQualifiedNamespaceFilm);
             var FullyQualifiedNamespaceContextChimera = FullyQualifiedNamespaceContext.AddEntitySet("Chimeras", FullyQualifiedNamespaceChimera);
 
             FullyQualifiedNamespaceContext.AddEntitySet("Shapes", fullyQualifiedNamespaceShape);
@@ -913,6 +922,7 @@ namespace Microsoft.OData.Tests.UriParser
         <EntitySet Name=""Pet4Set"" EntityType=""Fully.Qualified.Namespace.Pet4"" />
         <EntitySet Name=""Pet5Set"" EntityType=""Fully.Qualified.Namespace.Pet5"" />
         <EntitySet Name=""Pet6Set"" EntityType=""Fully.Qualified.Namespace.Pet6"" />
+        <EntitySet Name=""Films"" EntityType=""Fully.Qualified.Namespace.Film"" />
         <EntitySet Name=""Chimeras"" EntityType=""Fully.Qualified.Namespace.Chimera"" />
         <Singleton Name=""Boss"" Type=""Fully.Qualified.Namespace.Person"">
           <NavigationPropertyBinding Path=""MyDog"" Target=""Dogs"" />
@@ -976,6 +986,11 @@ namespace Microsoft.OData.Tests.UriParser
         <Member Name=""Triangle"" Value=""2"" />
         <Member Name=""foursquare"" Value=""3"" />
       </EnumType>
+      <EnumType Name=""AddressType"">
+        <Member Name=""Home"" Value=""0"" />
+        <Member Name=""Work"" Value=""1"" />
+        <Member Name=""Other"" Value=""2"" />
+      </EnumType>
       <EntityType Name=""Lion"">
         <Key>
           <PropertyRef Name=""ID1"" />
@@ -1027,6 +1042,7 @@ namespace Microsoft.OData.Tests.UriParser
         <Property Name=""MyOpenAddress"" Type=""Fully.Qualified.Namespace.OpenAddress"" />
         <Property Name=""PreviousAddresses"" Type=""Collection(Fully.Qualified.Namespace.Address)"" />
         <Property Name=""FavoriteColors"" Type=""Collection(Fully.Qualified.Namespace.ColorPattern)"" />
+        <Property Name=""SecondFavoriteNumber"" Type=""Edm.Int16"" />
         <Property Name=""FavoriteNumber"" Type=""Fully.Qualified.Namespace.UInt16"" />
         <Property Name=""RelatedIDs"" Type=""Collection(Edm.Int32)"" Nullable=""false"" />
         <Property Name=""RelatedSSNs"" Type=""Collection(Edm.String)"" Nullable=""true"" />
@@ -1177,6 +1193,7 @@ namespace Microsoft.OData.Tests.UriParser
         <Property Name=""City"" Type=""Edm.String"" />
         <Property Name=""NextHome"" Type=""Fully.Qualified.Namespace.Address"" />
         <Property Name=""MyNeighbors"" Type=""Collection(Edm.String)"" />
+        <Property Name=""AddressType"" Type=""Fully.Qualified.Namespace.AddressType"" Nullable=""false"" />
         <NavigationProperty Name=""PostBoxPainting"" Type=""Fully.Qualified.Namespace.Painting"" />
       </ComplexType>
       <ComplexType Name=""HomeAddress"" BaseType=""Fully.Qualified.Namespace.Address"">
@@ -1659,6 +1676,11 @@ namespace Microsoft.OData.Tests.UriParser
             return TestModel.FindEntityContainer("Context").FindEntitySet("Pet6Set");
         }
 
+        public static IEdmEntitySet GetFilmSet()
+        {
+            return TestModel.FindEntityContainer("Context").FindEntitySet("Films");
+        }
+
         public static IEdmEntitySet GetPeopleSet()
         {
             return TestModel.FindEntityContainer("Context").FindEntitySet("People");
@@ -1760,6 +1782,16 @@ namespace Microsoft.OData.Tests.UriParser
         public static IEdmEntityTypeReference GetDogTypeReference()
         {
             return new EdmEntityTypeReference(GetDogType(), false);
+        }
+
+        public static IEdmComplexType GetColorPatternType()
+        {
+            return TestModel.FindType("Fully.Qualified.Namespace.ColorPattern") as IEdmComplexType;
+        }
+
+        public static IEdmComplexTypeReference GetColorPatternTypeReference()
+        {
+            return new EdmComplexTypeReference(GetColorPatternType(), false);
         }
 
         public static IEdmEntityType GetPaintingType()
@@ -2001,6 +2033,16 @@ namespace Microsoft.OData.Tests.UriParser
             return (IEdmStructuralProperty)((IEdmStructuredType)TestModel.FindType("Fully.Qualified.Namespace.Address")).FindProperty("City");
         }
 
+        public static IEdmStructuralProperty GetMyAddressAddressTypeProperty()
+        {
+            return (IEdmStructuralProperty)((IEdmStructuredType)TestModel.FindType("Fully.Qualified.Namespace.Address")).FindProperty("AddressType");
+        }
+
+        public static IEdmStructuralProperty GetAddressHomeNOProperty()
+        {
+            return (IEdmStructuralProperty)((IEdmStructuredType)TestModel.FindType("Fully.Qualified.Namespace.HomeAddress")).FindProperty("HomeNO");
+        }
+
         public static IEdmStructuralProperty GetPet2PetColorPatternProperty()
         {
             return (IEdmStructuralProperty)((IEdmStructuredType)TestModel.FindType("Fully.Qualified.Namespace.Pet2")).FindProperty("PetColorPattern");
@@ -2016,6 +2058,11 @@ namespace Microsoft.OData.Tests.UriParser
         public static IEdmNavigationProperty GetAddressMyFavoriteNeighborNavProp()
         {
             return (IEdmNavigationProperty)((IEdmStructuredType)TestModel.FindType("Fully.Qualified.Namespace.Address")).FindProperty("MyFavoriteNeighbor");
+        }
+
+        public static IEdmStructuralProperty GetEmployeeWorkIDProperty()
+        {
+            return (IEdmStructuralProperty)((IEdmStructuredType)TestModel.FindType("Fully.Qualified.Namespace.Employee")).FindProperty("WorkID");
         }
 
         public static IEdmNavigationProperty GetDogFastestOwnerNavProp()
@@ -2226,6 +2273,11 @@ namespace Microsoft.OData.Tests.UriParser
         public static IEdmFunction GetFunctionForGetMyDog()
         {
             return TestModel.FindOperations("Fully.Qualified.Namespace.GetMyDog").Single() as IEdmFunction;
+        }
+
+        public static IEdmFunction GetFunctionForGetMyDogGetSomeAddressFromPerson()
+        {
+            return TestModel.FindOperations("Fully.Qualified.Namespace.GetSomeAddressFromPerson").Single() as IEdmFunction;
         }
 
         public static IEdmFunctionImport GetFunctionImportIsAddressGood()

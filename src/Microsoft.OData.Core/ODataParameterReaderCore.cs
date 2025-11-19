@@ -185,7 +185,7 @@ namespace Microsoft.OData
         public override sealed bool Read()
         {
             this.VerifyCanRead(true);
-            return this.InterceptException((thisParam) => thisParam.ReadSynchronously());
+            return this.InterceptException(static (thisParam) => thisParam.ReadSynchronously());
         }
 
         /// <summary>
@@ -195,7 +195,7 @@ namespace Microsoft.OData
         public override sealed Task<bool> ReadAsync()
         {
             this.VerifyCanRead(false);
-            return this.InterceptExceptionAsync((thisParam) => thisParam.ReadAsynchronously());
+            return this.InterceptExceptionAsync(static (thisParam) => thisParam.ReadAsynchronously());
         }
 
         /// <summary>
@@ -432,7 +432,14 @@ this.State == ODataParameterReaderState.Collection,
             // We are reading from the fully buffered read stream here; thus it is ok
             // to use synchronous reads and then return a completed task
             // NOTE: once we switch to fully async reading this will have to change
-            return TaskUtils.GetTaskForSynchronousOperation<bool>(this.ReadImplementation);
+            try
+            {
+                return Task.FromResult(this.ReadImplementation());
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException<bool>(ex);
+            }
         }
 
         /// <summary>

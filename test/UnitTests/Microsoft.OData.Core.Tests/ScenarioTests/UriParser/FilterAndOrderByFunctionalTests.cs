@@ -13,8 +13,10 @@ using Microsoft.OData.Metadata;
 using Microsoft.OData.Tests.ScenarioTests.UriBuilder;
 using Microsoft.OData.Tests.UriParser;
 using Microsoft.OData.UriParser;
+using Microsoft.OData.UriParser.Aggregation;
 using Microsoft.Spatial;
 using Microsoft.Test.OData.Utils.Metadata;
+using Microsoft.VisualBasic;
 using Xunit;
 
 namespace Microsoft.OData.Tests.ScenarioTests.UriParser
@@ -761,6 +763,259 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
         }
 
         [Fact]
+        public void IsOfFunctionWorksWithOrWithoutSingleQuotesOnType()
+        {
+            FilterClause filter = ParseFilter("isof(Shoe, Edm.String)", HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+            var singleValueFunctionCallNode = filter.Expression.ShouldBeSingleValueFunctionCallQueryNode("isof");
+            singleValueFunctionCallNode.Parameters.ElementAt(0).ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetPersonShoeProp());
+            singleValueFunctionCallNode.Parameters.ElementAt(1).ShouldBeConstantQueryNode("Edm.String");
+        }
+
+        [Fact]
+        public void IsOfFunctionWithOneParameter_WithSingleQuotesOnTypeParameter_ShouldBeConstantQueryNode()
+        {
+            // Arrange 
+            var filterQuery = "isof('Fully.Qualified.Namespace.Employee')";
+
+            // Act
+            FilterClause filter = ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+
+            // Assert
+            SingleValueFunctionCallNode singleValueFunctionCallNode = filter.Expression.ShouldBeSingleValueFunctionCallQueryNode("isof");
+            ResourceRangeVariableReferenceNode rangeVariableReference = singleValueFunctionCallNode.Parameters.ElementAt(0).ShouldBeResourceRangeVariableReferenceNode("$it");
+            Assert.Equal("Fully.Qualified.Namespace.Person", rangeVariableReference.GetEdmTypeReference().FullName()); // $it is of type Person
+
+            var constantNode = singleValueFunctionCallNode.Parameters.ElementAt(1).ShouldBeConstantQueryNode("Fully.Qualified.Namespace.Employee");
+            Assert.Equal("Fully.Qualified.Namespace.Employee", constantNode.Value); // 'Fully.Qualified.Namespace.Employee' is the type parameter
+        }
+
+        [Fact]
+        public void IsOfFunctionWithOneParameter_WithoutSingleQuotesOnTypeParameter_ShouldBeSingleResourceCastNode()
+        {
+            // Arrange 
+            var filterQuery = "isof(Fully.Qualified.Namespace.Employee)";
+
+            // Act
+            FilterClause filter = ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+
+            // Assert
+            SingleValueFunctionCallNode singleValueFunctionCallNode = filter.Expression.ShouldBeSingleValueFunctionCallQueryNode("isof");
+            ResourceRangeVariableReferenceNode rangeVariableReference = singleValueFunctionCallNode.Parameters.ElementAt(0).ShouldBeResourceRangeVariableReferenceNode("$it");
+            Assert.Equal("Fully.Qualified.Namespace.Person", rangeVariableReference.GetEdmTypeReference().FullName()); // $it is of type Person
+
+            var singleResourceCastNode = singleValueFunctionCallNode.Parameters.ElementAt(1).ShouldBeSingleResourceCastNode(HardCodedTestModel.GetEmployeeTypeReference());
+            Assert.Equal("Fully.Qualified.Namespace.Employee", singleResourceCastNode.TypeReference.FullName()); // Fully.Qualified.Namespace.Employee is the type parameter
+        }
+
+        [Fact]
+        public void IsOfFunctionWithTwoParameters_WithSingleQuotesOnTypeParameter_ShouldBeConstantQueryNode()
+        {
+            // Arrange
+            var filterQuery = "isof(MyAddress, 'Fully.Qualified.Namespace.HomeAddress')";
+
+            // Act
+            FilterClause filter = ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+
+            // Assert
+            SingleValueFunctionCallNode singleValueFunctionCallNode = filter.Expression.ShouldBeSingleValueFunctionCallQueryNode("isof");
+            SingleComplexNode singleComplexNode = singleValueFunctionCallNode.Parameters.ElementAt(0).ShouldBeSingleComplexNode(HardCodedTestModel.GetPersonAddressProp());
+            Assert.Equal("MyAddress", singleComplexNode.Property.Name); // MyAddress is the property name
+            Assert.Equal("Fully.Qualified.Namespace.Address", singleComplexNode.GetEdmTypeReference().FullName()); // MyAddress is of type Address
+
+            var constantNode = singleValueFunctionCallNode.Parameters.ElementAt(1).ShouldBeConstantQueryNode("Fully.Qualified.Namespace.HomeAddress");
+            Assert.Equal("Fully.Qualified.Namespace.HomeAddress", constantNode.Value); // 'Fully.Qualified.Namespace.Employee' is the type parameter
+        }
+
+        [Fact]
+        public void IsOfFunctionWithTwoParameters_WithoutSingleQuotesOnTypeParameter_ShouldBeSingleResourceCastNode()
+        {
+            // Arrange
+            var filterQuery = "isof(MyAddress, Fully.Qualified.Namespace.HomeAddress)";
+
+            // Act
+            FilterClause filter = ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+
+            // Assert
+            SingleValueFunctionCallNode singleValueFunctionCallNode = filter.Expression.ShouldBeSingleValueFunctionCallQueryNode("isof");
+            SingleComplexNode singleComplexNode = singleValueFunctionCallNode.Parameters.ElementAt(0).ShouldBeSingleComplexNode(HardCodedTestModel.GetPersonAddressProp());
+            Assert.Equal("MyAddress", singleComplexNode.Property.Name); // MyAddress is the property name
+            Assert.Equal("Fully.Qualified.Namespace.Address", singleComplexNode.GetEdmTypeReference().FullName()); // MyAddress is of type Address
+
+            var singleResourceCastNode = singleValueFunctionCallNode.Parameters.ElementAt(1).ShouldBeSingleResourceCastNode(HardCodedTestModel.GetHomeAddressReference());
+            Assert.Equal("Fully.Qualified.Namespace.HomeAddress", singleResourceCastNode.TypeReference.FullName()); // Fully.Qualified.Namespace.HomeAddress is the type parameter
+        }
+
+        [Theory]
+        [InlineData("isof(ID, Edm.Int64)", "Edm.Int64")]
+        [InlineData("isof(ID, edm.int64)", "edm.int64")]
+        [InlineData("isof(ID, Edm.int64)", "Edm.int64")]
+        [InlineData("isof(ID, EDM.INT64)", "EDM.INT64")]
+        public void IsOfFunctionWorksWithoutSingleQuotesOnPrimitiveType_CaseInsentive(string queryFilter, string expectedConstantNodeValue)
+        {
+            FilterClause filter = ParseFilter(queryFilter, true, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+            var singleValueFunctionCallNode = filter.Expression.ShouldBeSingleValueFunctionCallQueryNode("isof");
+            singleValueFunctionCallNode.Parameters.ElementAt(0).ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetPersonIdProp());
+            singleValueFunctionCallNode.Parameters.ElementAt(1).ShouldBeConstantQueryNode(expectedConstantNodeValue);
+        }
+
+        [Theory]
+        [InlineData("isof(ID, Edm.Int32)", "Edm.Int32")]
+        [InlineData("isof(ID, edm.int32)", "edm.int32")]
+        [InlineData("isof(ID, Edm.int32)", "Edm.int32")]
+        [InlineData("isof(ID, EDM.INT32)", "EDM.INT32")]
+        public void IsOfFunctionWorksWithoutSingleQuotesOnPrimitiveType_ODataUriParserCaseInsentive(string queryFilter, string expectedConstantNodeValue)
+        {
+            FilterClause filter = ParseFilterODataUriParserCaseInsensitive($"/people?$filter={queryFilter}", HardCodedTestModel.TestModel);
+            var singleValueFunctionCallNode = filter.Expression.ShouldBeSingleValueFunctionCallQueryNode("isof");
+            singleValueFunctionCallNode.Parameters.ElementAt(0).ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetPersonIdProp());
+            singleValueFunctionCallNode.Parameters.ElementAt(1).ShouldBeConstantQueryNode(expectedConstantNodeValue);
+        }
+
+        [Theory]
+        [InlineData("isof(Fully.Qualified.Namespace.Employee)")]
+        [InlineData("isof('Fully.Qualified.Namespace.Employee')")]
+        public void IsOfFunctionWithOneParameter_WithOrWithoutSingleQuotesOnTypeParameter_WorksAsExpected(string filterQuery)
+        {
+            // Arrange & Act
+            FilterClause filter = ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+
+            // Assert
+            SingleValueFunctionCallNode singleValueFunctionCallNode = filter.Expression.ShouldBeSingleValueFunctionCallQueryNode("isof");
+            ResourceRangeVariableReferenceNode rangeVariableReference = singleValueFunctionCallNode.Parameters.ElementAt(0).ShouldBeResourceRangeVariableReferenceNode("$it");
+            Assert.Equal("Fully.Qualified.Namespace.Person", rangeVariableReference.GetEdmTypeReference().FullName()); // $it is of type Person
+
+            var secondParameter = singleValueFunctionCallNode.Parameters.ElementAt(1);
+            string fullyQualifiedTypeName = secondParameter switch
+            {
+                SingleResourceCastNode singleResourceCastNode => secondParameter.ShouldBeSingleResourceCastNode(HardCodedTestModel.GetEmployeeTypeReference()).TypeReference.FullName(),
+                ConstantNode constantNode => secondParameter.ShouldBeConstantQueryNode("Fully.Qualified.Namespace.Employee").Value as string,
+                _ => throw new InvalidOperationException("Unexpected node type")
+            };
+
+            Assert.Equal("Fully.Qualified.Namespace.Employee", fullyQualifiedTypeName);
+        }
+
+        [Theory]
+        [InlineData("isof(Fully.Qualified.Namespace.Employee)")]
+        [InlineData("isof(fully.Qualified.namespace.employee)")]
+        [InlineData("isof(FULLY.QUALIFIED.NAMESPACE.EMPLOYEE)")]
+        public void IsOfFunctionWithOneParameter_WithoutSingleQuotesOnTypeParameter_ShouldBeSingleResourceCastNode_CaseInsensitive(string filterQuery)
+        {
+            // Arrange 
+            // Act
+            FilterClause filter = ParseFilterODataUriParserCaseInsensitive($"/people?$filter={filterQuery}", HardCodedTestModel.TestModel);
+
+            // Assert
+            SingleValueFunctionCallNode singleValueFunctionCallNode = filter.Expression.ShouldBeSingleValueFunctionCallQueryNode("isof");
+            ResourceRangeVariableReferenceNode rangeVariableReference = singleValueFunctionCallNode.Parameters.ElementAt(0).ShouldBeResourceRangeVariableReferenceNode("$it");
+            Assert.Equal("Fully.Qualified.Namespace.Person", rangeVariableReference.GetEdmTypeReference().FullName()); // $it is of type Person
+
+            var singleResourceCastNode = singleValueFunctionCallNode.Parameters.ElementAt(1).ShouldBeSingleResourceCastNode(HardCodedTestModel.GetEmployeeTypeReference());
+            Assert.Equal("Fully.Qualified.Namespace.Employee", singleResourceCastNode.TypeReference.FullName()); // Fully.Qualified.Namespace.Employee is the type parameter
+        }
+
+        [Theory]
+        [InlineData("isof(MyAddress, 'Fully.Qualified.Namespace.HomeAddress')")]
+        [InlineData("isof(MyAddress, Fully.Qualified.Namespace.HomeAddress)")]
+        public void IsOfFunctionWithTwoParameters_WithSingleQuotesOnTypeParameter_WorksAsExpected(string filterQuery)
+        {
+            // Arrange & Act
+            FilterClause filter = ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+
+            // Assert
+            SingleValueFunctionCallNode singleValueFunctionCallNode = filter.Expression.ShouldBeSingleValueFunctionCallQueryNode("isof");
+            SingleComplexNode singleComplexNode = singleValueFunctionCallNode.Parameters.ElementAt(0).ShouldBeSingleComplexNode(HardCodedTestModel.GetPersonAddressProp());
+            Assert.Equal("MyAddress", singleComplexNode.Property.Name); // MyAddress is the property name
+            Assert.Equal("Fully.Qualified.Namespace.Address", singleComplexNode.GetEdmTypeReference().FullName()); // MyAddress is of type Address
+
+            var secondParameter = singleValueFunctionCallNode.Parameters.ElementAt(1);
+            string fullyQualifiedTypeName = secondParameter switch
+            {
+                SingleResourceCastNode singleResourceCastNode => secondParameter.ShouldBeSingleResourceCastNode(HardCodedTestModel.GetHomeAddressReference()).TypeReference.FullName(),
+                ConstantNode constantNode => secondParameter.ShouldBeConstantQueryNode("Fully.Qualified.Namespace.HomeAddress").Value as string,
+                _ => throw new InvalidOperationException("Unexpected node type")
+            };
+
+            Assert.Equal("Fully.Qualified.Namespace.HomeAddress", fullyQualifiedTypeName);
+        }
+
+        [Theory]
+        [InlineData("isof(MyAddress, Fully.Qualified.Namespace.HomeAddress)")]
+        [InlineData("isof(MyAddress, fully.Qualified.namespace.Homeaddress)")]
+        [InlineData("isof(MyAddress, FULLY.Qualified.Namespace.HOMEAddress)")]
+        public void IsOfFunctionWithTwoParameters_WithoutSingleQuotesOnTypeParameter_ShouldBeSingleResourceCastNode_CaseInsensitive(string filterQuery)
+        {
+            // Arrange
+            // Act
+            FilterClause filter = ParseFilterODataUriParserCaseInsensitive($"/people?$filter={filterQuery}", HardCodedTestModel.TestModel);
+
+            // Assert
+            SingleValueFunctionCallNode singleValueFunctionCallNode = filter.Expression.ShouldBeSingleValueFunctionCallQueryNode("isof");
+            SingleComplexNode singleComplexNode = singleValueFunctionCallNode.Parameters.ElementAt(0).ShouldBeSingleComplexNode(HardCodedTestModel.GetPersonAddressProp());
+            Assert.Equal("MyAddress", singleComplexNode.Property.Name); // MyAddress is the property name
+            Assert.Equal("Fully.Qualified.Namespace.Address", singleComplexNode.GetEdmTypeReference().FullName()); // MyAddress is of type Address
+
+            var singleResourceCastNode = singleValueFunctionCallNode.Parameters.ElementAt(1).ShouldBeSingleResourceCastNode(HardCodedTestModel.GetHomeAddressReference());
+            Assert.Equal("Fully.Qualified.Namespace.HomeAddress", singleResourceCastNode.TypeReference.FullName()); // Fully.Qualified.Namespace.HomeAddress is the type parameter
+        }
+
+        [Theory]
+        [InlineData("isof(Fully.Qualified.Namespace.Pet1)", "'Fully.Qualified.Namespace.Pet1' is not assignable from 'Fully.Qualified.Namespace.Person'.")]
+        [InlineData("isof(MyAddress,Fully.Qualified.Namespace.Pet1)", "'Fully.Qualified.Namespace.Pet1' is not assignable from 'Fully.Qualified.Namespace.Address'.")]
+        [InlineData("isof(null,Fully.Qualified.Namespace.Person)", "'Fully.Qualified.Namespace.Person' is not assignable from '<null>'.")]
+        [InlineData("isof('',Fully.Qualified.Namespace.Person)", "'Fully.Qualified.Namespace.Person' is not assignable from 'Edm.String'.")]
+        public void IsOfFunctionsWithUnquotedTypeParameter_WithIncorrectType_ThrowException(string filterQuery, string errorMessage)
+        {
+            // Arrange & Act
+            var exception = Record.Exception(() => ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet()));
+
+            // Assert
+            Assert.NotNull(exception);
+            Assert.IsType<ODataException>(exception);
+            Assert.Equal($"Encountered invalid type cast. {errorMessage}", exception.Message);
+        }
+
+        [Theory]
+        [InlineData("cast(Fully.Qualified.Namespace.HomeAddress)/City eq 'City1'", "'Fully.Qualified.Namespace.HomeAddress' is not assignable from 'Fully.Qualified.Namespace.Person'.")]
+        [InlineData("cast(MyAddress,Fully.Qualified.Namespace.Employee)/WorkID eq 345", "'Fully.Qualified.Namespace.Employee' is not assignable from 'Fully.Qualified.Namespace.Address'.")]
+        [InlineData("cast(null,Fully.Qualified.Namespace.Employee)/WorkID eq 345", "'Fully.Qualified.Namespace.Employee' is not assignable from '<null>'.")]
+        [InlineData("cast('',Fully.Qualified.Namespace.Employee)/WorkID eq 345", "'Fully.Qualified.Namespace.Employee' is not assignable from 'Edm.String'.")]
+        public void CastFunctionWithUnquotedTypeParameter_WithIncorrectType_ThrowException(string filterQuery, string errorMessage)
+        {
+            // Arrange & Act
+            var exception = Record.Exception(() => ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet()));
+
+            // Assert
+            Assert.NotNull(exception);
+            Assert.IsType<ODataException>(exception);
+            Assert.Equal($"Encountered invalid type cast. {errorMessage}", exception.Message);
+        }
+
+        [Theory]
+        [InlineData("isof(Fully.Qualified.Namespace.Pet1)", "Fully.Qualified.Namespace.Pet1")]
+        [InlineData("cast(Fully.Qualified.Namespace.HomeAddress)/City eq 'City1'", "Fully.Qualified.Namespace.HomeAddress")]
+        public void IsOfAndCastFunctionsWithSingleParameterWithoutSingleQuotes_WithIncorrectType_ThrowException(string filterQuery, string fullyQualifiedTypeName)
+        {
+            // Arrange & Act
+            Action test = () => ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+
+            // Assert
+            test.Throws<ODataException>(Error.Format(SRResources.MetadataBinder_HierarchyNotFollowed, fullyQualifiedTypeName, "Fully.Qualified.Namespace.Person"));
+        }
+
+        [Theory]
+        [InlineData("isof(MyAddress,Fully.Qualified.Namespace.Pet1)", "Fully.Qualified.Namespace.Pet1")]
+        [InlineData("cast(MyAddress,Fully.Qualified.Namespace.Employee)/WorkID eq 345", "Fully.Qualified.Namespace.Employee")]
+        public void IsOfAndCastFunctionsWithTwoParameterWhereTypeParameterIsWithoutSingleQuotes_WithIncorrectType_ThrowException(string filterQuery, string fullyQualifiedTypeName)
+        {
+            // Arrange & Act
+            Action test = () => ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+
+            // Assert
+            test.Throws<ODataException>(Error.Format(SRResources.MetadataBinder_HierarchyNotFollowed, fullyQualifiedTypeName, "Fully.Qualified.Namespace.Address"));
+        }
+
+        [Fact]
         public void CastFunctionWorksWithNoSingleQuotesOnType()
         {
             FilterClause filter = ParseFilter("cast(Shoe, Edm.String) eq 'blue'", HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
@@ -770,6 +1025,39 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
             singleFunctionCallNode.Parameters.ElementAt(0).ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetPersonShoeProp());
             singleFunctionCallNode.Parameters.ElementAt(1).ShouldBeConstantQueryNode("Edm.String");
             bon.Right.ShouldBeConstantQueryNode("blue");
+        }
+
+        [Theory]
+        [InlineData("cast(Shoe, edm.string) eq 'blue'", "edm.string")]
+        [InlineData("cast(Shoe, Edm.string) eq 'blue'", "Edm.string")]
+        [InlineData("cast(Shoe, edm.String) eq 'blue'", "edm.String")]
+        [InlineData("cast(Shoe, Edm.String) eq 'blue'", "Edm.String")]
+        [InlineData("cast(Shoe, EDM.STRING) eq 'blue'", "EDM.STRING")]
+        public void CastFunctionWorksWithNoSingleQuotesOnTypeWithODataUriParserCaseInsensitive(string filterQuery, string expectedConstantQueryNode)
+        {
+            FilterClause filter = ParseFilterODataUriParserCaseInsensitive($"/people?$filter={filterQuery}", HardCodedTestModel.TestModel);
+            var bon = filter.Expression.ShouldBeBinaryOperatorNode(BinaryOperatorKind.Equal);
+            var convertQueryNode = bon.Left.ShouldBeConvertQueryNode(EdmPrimitiveTypeKind.String);
+            var singleFunctionCallNode = convertQueryNode.Source.ShouldBeSingleValueFunctionCallQueryNode("cast");
+            singleFunctionCallNode.Parameters.ElementAt(0).ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetPersonShoeProp());
+            singleFunctionCallNode.Parameters.ElementAt(1).ShouldBeConstantQueryNode(expectedConstantQueryNode);
+            bon.Right.ShouldBeConstantQueryNode("blue");
+        }
+
+        [Theory]
+        [InlineData("cast(ID, edm.int32) lt 10", "edm.int32")]
+        [InlineData("cast(ID, Edm.int32) lt 10", "Edm.int32")]
+        [InlineData("cast(ID, edm.Int32) lt 10", "edm.Int32")]
+        [InlineData("cast(ID, Edm.Int32) lt 10", "Edm.Int32")]
+        [InlineData("cast(ID, EDM.INT32) lt 10", "EDM.INT32")]
+        public void CastFunctionWorksWithNoSingleQuotesOnTypeWithCaseInsensitive(string filterQuery, string expectedConstantQueryNode)
+        {
+            FilterClause filter = ParseFilter(filterQuery, true, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+            var bon = filter.Expression.ShouldBeBinaryOperatorNode(BinaryOperatorKind.LessThan);
+            var singleFunctionCallNode = bon.Left.ShouldBeSingleValueFunctionCallQueryNode("cast");
+            singleFunctionCallNode.Parameters.ElementAt(0).ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetPersonIdProp());
+            singleFunctionCallNode.Parameters.ElementAt(1).ShouldBeConstantQueryNode(expectedConstantQueryNode);
+            bon.Right.ShouldBeConstantQueryNode(10);
         }
 
         [Fact]
@@ -783,14 +1071,26 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
             bon.Right.ShouldBeEnumNode(HardCodedTestModel.TestModel.FindType("Fully.Qualified.Namespace.ColorPattern") as IEdmEnumType, 2L);
         }
 
-        [Fact]
-        public void CastFunctionWorksForCastFromNullToEnum()
+        [Theory]
+        [InlineData("cast(null, Fully.Qualified.Namespace.ColorPattern) eq Fully.Qualified.Namespace.ColorPattern'blue'")]
+        [InlineData("cast(null, 'Fully.Qualified.Namespace.ColorPattern') eq Fully.Qualified.Namespace.ColorPattern'blue'")]
+        public void CastFunctionWorksForCastFromNullToEnum(string filterQuery)
         {
-            FilterClause filter = ParseFilter("cast(null, Fully.Qualified.Namespace.ColorPattern) eq Fully.Qualified.Namespace.ColorPattern'blue'", HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+            FilterClause filter = ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
             var bon = filter.Expression.ShouldBeBinaryOperatorNode(BinaryOperatorKind.Equal);
             var singleFunctionCallNode = bon.Left.ShouldBeSingleValueFunctionCallQueryNode("cast");
             Assert.Null(Assert.IsType<ConstantNode>(singleFunctionCallNode.Parameters.ElementAt(0)).Value);
-            singleFunctionCallNode.Parameters.ElementAt(1).ShouldBeConstantQueryNode("Fully.Qualified.Namespace.ColorPattern");
+
+            QueryNode secondParameterNode = singleFunctionCallNode.Parameters.ElementAt(1);
+            string fullyQualifiedTypeName = secondParameterNode switch
+            {
+                SingleResourceCastNode singleResourceCastNode => singleResourceCastNode.TypeReference.FullName(),
+                ConstantNode constantNode => constantNode.Value as string,
+                _ => throw new InvalidOperationException("Unexpected node type")
+            };
+
+            Assert.Equal("Fully.Qualified.Namespace.ColorPattern", fullyQualifiedTypeName);
+            Assert.Equal("Fully.Qualified.Namespace.ColorPattern'blue'", Assert.IsType<ConstantNode>(bon.Right).LiteralText);
             bon.Right.ShouldBeEnumNode(HardCodedTestModel.TestModel.FindType("Fully.Qualified.Namespace.ColorPattern") as IEdmEnumType, 2L);
         }
 
@@ -805,17 +1105,168 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
             Assert.Equal("Fully.Qualified.Namespace.ColorPattern'blue'", Assert.IsType<ConstantNode>(bon.Right).LiteralText);
         }
 
-        [Fact]
-        public void CastFunctionProducesAnEntityType()
+        [Theory]
+        [InlineData("PetColorPattern eq Fully.Qualified.Namespace.ColorPattern 'Blue'", "Syntax error at position 64 in 'PetColorPattern eq Fully.Qualified.Namespace.ColorPattern 'Blue''.")]
+        [InlineData("PetColorPattern eq ',Red,Solid'", "The string ',Red,Solid' is not a valid enumeration type constant.")]
+        [InlineData("PetColorPattern eq 'Red,Blue,Striped,'", "The string 'Red,Blue,Striped,' is not a valid enumeration type constant.")]
+        [InlineData("PetColorPattern eq 'Red,,Striped,'", "The string 'Red,,Striped,' is not a valid enumeration type constant.")]
+        [InlineData("PetColorPattern in (,Red,Solid)", "Invalid JSON. An unexpected comma was found in scope 'Array'. A comma is only valid between properties of an object or between elements of an array.")]
+        [InlineData("PetColorPattern in (Red,Blue,Striped,)", "Invalid JSON. An unexpected comma was found in scope 'Array'. A comma is only valid between properties of an object or between elements of an array.")]
+        [InlineData("PetColorPattern in (Red,,Striped)", "Invalid JSON. A token was not recognized in the JSON content.")]
+        [InlineData("PetColorPattern in (Fully.Qualified.Namespace.ColorPattern 'Red',Fully.Qualified.Namespace.ColorPattern'Striped')", "Invalid JSON. A comma character ',' was expected in scope 'Array'. Every two elements in an array and properties of an object must be separated by commas.")]
+
+        public void ParseFilter_WithInvalidEnumValues_ThrowsODataException(string query, string errorMessage)
         {
-            FilterClause filter = ParseFilter("cast(MyDog, 'Fully.Qualified.Namespace.Dog')/Color eq 'blue'", HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+            var exception = Assert.Throws<ODataException>(() =>
+                ParseFilter(query, HardCodedTestModel.TestModel, HardCodedTestModel.GetPet2Type(), HardCodedTestModel.GetPet2Set()));
+            Assert.Equal(errorMessage, exception.Message);
+        }
+
+        [Theory]
+        [InlineData("cast(MyDog, 'Fully.Qualified.Namespace.Dog')/Color eq 'blue'")]
+        [InlineData("cast(MyDog, Fully.Qualified.Namespace.Dog)/Color eq 'blue'")]
+        public void CastFunctionProducesAnEntityType(string filterQuery)
+        {
+            FilterClause filter = ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
             SingleResourceFunctionCallNode function = filter.Expression.ShouldBeBinaryOperatorNode(BinaryOperatorKind.Equal)
                 .Left.ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetDogColorProp())
                 .Source.ShouldBeSingleResourceFunctionCallNode("cast");
             Assert.Equal(2, function.Parameters.Count());
             function.Parameters.ElementAt(0).ShouldBeSingleNavigationNode(HardCodedTestModel.GetPersonMyDogNavProp());
-            function.Parameters.ElementAt(1).ShouldBeConstantQueryNode("Fully.Qualified.Namespace.Dog");
+
+            var secondParameter = function.Parameters.ElementAt(1);
+            string fullyQualifiedTypeName = secondParameter switch
+            {
+                SingleResourceCastNode singleResourceCastNode => secondParameter.ShouldBeSingleResourceCastNode(HardCodedTestModel.GetDogTypeReference()).TypeReference.FullName(),
+                ConstantNode constantNode => secondParameter.ShouldBeConstantQueryNode("Fully.Qualified.Namespace.Dog").Value as string,
+                _ => throw new InvalidOperationException("Unexpected node type")
+            };
+
+            Assert.Equal("Fully.Qualified.Namespace.Dog", fullyQualifiedTypeName);
             Assert.IsType<BinaryOperatorNode>(filter.Expression).Right.ShouldBeConstantQueryNode("blue");
+        }
+
+        [Theory]
+        [InlineData("cast(MyDog, fully.Qualified.Namespace.Dog)/Color eq 'blue'")]
+        [InlineData("cast(MyDog, fully.qualified.namespace.dog)/Color eq 'blue'")]
+        [InlineData("cast(MyDog, fully.Qualified.namespace.dog)/Color eq 'blue'")]
+        [InlineData("cast(MyDog, fully.qualified.Namespace.dog)/Color eq 'blue'")]
+        [InlineData("cast(MyDog, fully.qualified.namespace.Dog)/Color eq 'blue'")]
+        [InlineData("cast(MyDog, FULLY.QUALIFIED.NAMESPACE.DOG)/Color eq 'blue'")]
+        public void CastFunctionProducesAnEntityTypeWorksWithCaseInsensitiveODataUriParser(string filterQuery)
+        {
+            FilterClause filter = ParseFilter(filterQuery, true, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+            SingleResourceFunctionCallNode function = filter.Expression.ShouldBeBinaryOperatorNode(BinaryOperatorKind.Equal)
+                .Left.ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetDogColorProp())
+                .Source.ShouldBeSingleResourceFunctionCallNode("cast");
+            Assert.Equal(2, function.Parameters.Count());
+            function.Parameters.ElementAt(0).ShouldBeSingleNavigationNode(HardCodedTestModel.GetPersonMyDogNavProp());
+            var singleResourceCastNode = function.Parameters.ElementAt(1).ShouldBeSingleCastNode(HardCodedTestModel.GetDogTypeReference());
+            Assert.Equal("Fully.Qualified.Namespace.Dog", singleResourceCastNode.TypeReference.FullName());
+            Assert.IsType<BinaryOperatorNode>(filter.Expression).Right.ShouldBeConstantQueryNode("blue");
+        }
+
+        [Theory]
+        [InlineData("cast(MyDog, fully.Qualified.Namespace.Dog)/Color eq 'blue'")]
+        [InlineData("cast(MyDog, fully.qualified.namespace.dog)/Color eq 'blue'")]
+        [InlineData("cast(MyDog, fully.Qualified.namespace.dog)/Color eq 'blue'")]
+        [InlineData("cast(MyDog, fully.qualified.Namespace.dog)/Color eq 'blue'")]
+        [InlineData("cast(MyDog, fully.qualified.namespace.Dog)/Color eq 'blue'")]
+        public void CastFunctionProducesAnEntityTypeWorksWithCaseInsensitive(string filterQuery)
+        {
+            FilterClause filter = ParseFilterODataUriParserCaseInsensitive($"/people?$filter={filterQuery}", HardCodedTestModel.TestModel);
+            SingleResourceFunctionCallNode function = filter.Expression.ShouldBeBinaryOperatorNode(BinaryOperatorKind.Equal)
+                .Left.ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetDogColorProp())
+                .Source.ShouldBeSingleResourceFunctionCallNode("cast");
+            Assert.Equal(2, function.Parameters.Count());
+            function.Parameters.ElementAt(0).ShouldBeSingleNavigationNode(HardCodedTestModel.GetPersonMyDogNavProp());
+            var singleResourceCastNode = function.Parameters.ElementAt(1).ShouldBeSingleCastNode(HardCodedTestModel.GetDogTypeReference());
+            Assert.Equal("Fully.Qualified.Namespace.Dog", singleResourceCastNode.TypeReference.FullName());
+            Assert.IsType<BinaryOperatorNode>(filter.Expression).Right.ShouldBeConstantQueryNode("blue");
+        }
+
+        [Theory]
+        [InlineData("cast(Fully.Qualified.Namespace.Employee)/WorkID eq 345")]
+        [InlineData("cast('Fully.Qualified.Namespace.Employee')/WorkID eq 345")]
+        public void CastFunctionWithOneParameter_WithOrWithoutSingleParameterProducesAnEntityType(string filterQuery)
+        {
+            // Arrange & Act
+            FilterClause filter = ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+
+            // Assert
+            SingleResourceFunctionCallNode function = filter.Expression.ShouldBeBinaryOperatorNode(BinaryOperatorKind.Equal)
+                .Left.ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetEmployeeWorkIDProperty())
+                .Source.ShouldBeSingleResourceFunctionCallNode("cast");
+
+            Assert.Equal(2, function.Parameters.Count());
+
+            ResourceRangeVariableReferenceNode resourceRangeVariable = function.Parameters.ElementAt(0).ShouldBeResourceRangeVariableReferenceNode("$it");
+            Assert.Equal("Fully.Qualified.Namespace.Person", resourceRangeVariable.GetEdmTypeReference().FullName()); // $it is of type Person
+
+            QueryNode node = function.Parameters.ElementAt(1);
+            string fullyQualifiedTypeName = node switch
+            {
+                SingleResourceCastNode singleResourceCastNode => node.ShouldBeSingleResourceCastNode(HardCodedTestModel.GetEmployeeTypeReference()).TypeReference.FullName(),
+                ConstantNode constantNode => node.ShouldBeConstantQueryNode("Fully.Qualified.Namespace.Employee").Value as string,
+                _ => throw new InvalidOperationException("Unexpected node type")
+            };
+
+            Assert.Equal("Fully.Qualified.Namespace.Employee", fullyQualifiedTypeName); // Fully.Qualified.Namespace.Employee is the type parameter
+            Assert.IsType<BinaryOperatorNode>(filter.Expression).Right.ShouldBeConstantQueryNode(345); // 345 is the right operand
+        }
+
+        [Theory]
+        [InlineData("cast(MyAddress, 'Fully.Qualified.Namespace.HomeAddress')/HomeNO eq 'H-1234'")]
+        [InlineData("cast(MyAddress, Fully.Qualified.Namespace.HomeAddress)/HomeNO eq 'H-1234'")]
+        public void CastFunctionWithTwoParameters_WithOrWithSingleParameterProducesAnEntityType(string filterQuery)
+        {
+            // Arrange & Act
+            FilterClause filter = ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+
+            // Assert
+            SingleResourceFunctionCallNode function = filter.Expression.ShouldBeBinaryOperatorNode(BinaryOperatorKind.Equal)
+                .Left.ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetAddressHomeNOProperty())
+                .Source.ShouldBeSingleResourceFunctionCallNode("cast");
+            Assert.Equal(2, function.Parameters.Count()); // There are two parameters
+
+            SingleComplexNode complexNode = function.Parameters.ElementAt(0).ShouldBeSingleComplexNode(HardCodedTestModel.GetPersonAddressProp());
+            Assert.Equal("Fully.Qualified.Namespace.Address", complexNode.GetEdmTypeReference().FullName()); // MyAddress is of type Address
+
+            QueryNode node = function.Parameters.ElementAt(1);
+            string fullyQualifiedTypeName = node switch
+            {
+                SingleResourceCastNode singleResourceCastNode => node.ShouldBeSingleResourceCastNode(HardCodedTestModel.GetHomeAddressReference()).TypeReference.FullName(),
+                ConstantNode constantNode => node.ShouldBeConstantQueryNode("Fully.Qualified.Namespace.HomeAddress").Value as string,
+                _ => throw new InvalidOperationException("Unexpected node type")
+            };
+
+            Assert.Equal("Fully.Qualified.Namespace.HomeAddress", fullyQualifiedTypeName); // Fully.Qualified.Namespace.HomeAddress is the type parameter
+            Assert.IsType<BinaryOperatorNode>(filter.Expression).Right.ShouldBeConstantQueryNode("H-1234");
+        }
+
+        [Theory]
+        [InlineData("cast(MyAddress/AddressType, Edm.String) eq '2'")] // AddressType is Enum
+        [InlineData("cast(MyAddress/AddressType, 'Edm.String') eq '2'")] // AddressType is Enum
+        public void CastFunctionWithTwoParametersWithBuiltInTypeProducesAnEntityType(string filterQuery)
+        {
+            // Arrange
+            string expectedAddressType = "Fully.Qualified.Namespace.AddressType";
+
+            // Act
+            FilterClause filter = ParseFilter(filterQuery, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+
+            // Assert
+            SingleValueFunctionCallNode function = filter.Expression.ShouldBeBinaryOperatorNode(BinaryOperatorKind.Equal)
+                .Left.ShouldBeConvertQueryNode(EdmCoreModel.Instance.GetString(true))
+                .Source.ShouldBeSingleValueFunctionCallQueryNode("cast");
+
+            Assert.Equal(2, function.Parameters.Count());
+
+            SingleValuePropertyAccessNode singleValuePropertyAccessNode = function.Parameters.ElementAt(0).ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetMyAddressAddressTypeProperty());
+            Assert.Equal(expectedAddressType, singleValuePropertyAccessNode.GetEdmTypeReference().FullName());
+
+            function.Parameters.ElementAt(1).ShouldBeConstantQueryNode("Edm.String");
+            Assert.IsType<BinaryOperatorNode>(filter.Expression).Right.ShouldBeConstantQueryNode("2");
         }
 
         [Fact]
@@ -919,7 +1370,58 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
             anyOnPrimitiveType.Throws<ODataException>(SRResources.MetadataBinder_LambdaParentMustBeCollection);
         }
 
-#region Custom Functions
+        [Theory]
+        [InlineData("Name eq $root/People(1245)/Name")]
+        [InlineData("Name eq $root/People/1245/Name")]
+        public void ParseDollarRootPath_WithPropertyAccess_InFilter(string filter)
+        {
+            var filterQueryNode = ParseFilter(filter, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+            BinaryOperatorNode bod = filterQueryNode.Expression.ShouldBeBinaryOperatorNode(BinaryOperatorKind.Equal);
+            bod.Left.ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetPersonNameProp());
+            RootPathNode rootPathNode = bod.Right.ShouldBeRootPathNode();
+            Assert.Equal(3, rootPathNode.Path.Count);
+
+            rootPathNode.Path.Segments[0].ShouldBeEntitySetSegment(HardCodedTestModel.GetPeopleSet());
+            rootPathNode.Path.Segments[1].ShouldBeKeySegment(new KeyValuePair<string, object>("ID", 1245));
+            rootPathNode.Path.Segments[2].ShouldBePropertySegment(HardCodedTestModel.GetPersonNameProp());
+        }
+
+        [Fact]
+        public void ParseDollarRootPath_WithTypeCastAndPropertyAccess_InFilter()
+        {
+            string filter = "Name eq $root/People/1245/Fully.Qualified.Namespace.Employee/WorkEmail";
+
+            var filterQueryNode = ParseFilter(filter, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+
+            BinaryOperatorNode bod = filterQueryNode.Expression.ShouldBeBinaryOperatorNode(BinaryOperatorKind.Equal);
+            bod.Left.ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetPersonNameProp());
+            RootPathNode rootPathNode = bod.Right.ShouldBeRootPathNode();
+            Assert.Equal(4, rootPathNode.Path.Count);
+
+            rootPathNode.Path.Segments[0].ShouldBeEntitySetSegment(HardCodedTestModel.GetPeopleSet());
+            rootPathNode.Path.Segments[1].ShouldBeKeySegment(new KeyValuePair<string, object>("ID", 1245));
+            rootPathNode.Path.Segments[2].ShouldBeTypeSegment(HardCodedTestModel.GetEmployeeType(), HardCodedTestModel.GetPersonType());
+            rootPathNode.Path.Segments[3].ShouldBePropertySegment(HardCodedTestModel.GetEmployeeWorkEmailProp());
+        }
+
+        [Fact]
+        public void ParseDollarRootPath_WithDollarCount_InFilter()
+        {
+            string filter = "$root/People/$count lt ID";
+
+            var filterQueryNode = ParseFilter(filter, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet());
+            BinaryOperatorNode bod = filterQueryNode.Expression.ShouldBeBinaryOperatorNode(BinaryOperatorKind.LessThan);
+            ConvertNode convertNode = bod.Right.ShouldBeConvertQueryNode(EdmCoreModel.Instance.GetInt32(true));
+            convertNode.Source.ShouldBeSingleValuePropertyAccessQueryNode(HardCodedTestModel.GetPersonIdProp());
+
+            RootPathNode rootPathNode = bod.Left.ShouldBeRootPathNode();
+            Assert.Equal(2, rootPathNode.Path.Count);
+
+            rootPathNode.Path.Segments[0].ShouldBeEntitySetSegment(HardCodedTestModel.GetPeopleSet());
+            Assert.Same(CountSegment.Instance, rootPathNode.Path.Segments[1]);
+        }
+
+        #region Custom Functions
 
         [Fact]
         public void FunctionWithASingleOverloadWorksInFilter()
@@ -1196,6 +1698,43 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
         }
 
         [Fact]
+        public void AggregatedPropertyTreatedAsOpenProperty2()
+        {
+            EdmModel model = new EdmModel();
+            EdmComplexType tagType = new EdmComplexType("NS", "Tag");
+            tagType.AddStructuralProperty("Name", EdmCoreModel.Instance.GetString(true));
+            tagType.AddStructuralProperty("Description", EdmCoreModel.Instance.GetString(true));
+            model.AddElement(tagType);
+
+            EdmEntityType articleType = new EdmEntityType("NS", "Article");
+            articleType.AddKeys(articleType.AddStructuralProperty("Id", EdmCoreModel.Instance.GetInt32(true)));
+            var collectionTagsType = new EdmCollectionTypeReference(new EdmCollectionType(new EdmComplexTypeReference(tagType, true)));
+
+            articleType.AddStructuralProperty("Tags", collectionTagsType);
+            model.AddElement(articleType);
+            EdmEntityContainer container = new EdmEntityContainer("NS", "Default");
+            EdmEntitySet articleSet = container.AddEntitySet("Articles", articleType);
+            model.AddElement(container);
+
+            EdmCollectionTypeReference stringCollectionType =
+                new EdmCollectionTypeReference(new EdmCollectionType(EdmCoreModel.Instance.GetString(true)));
+
+            FunctionSignatureWithReturnType customFunctionSignature =
+                new FunctionSignatureWithReturnType(stringCollectionType, collectionTagsType);
+            CustomUriFunctions.AddCustomUriFunction("microsoft.union", customFunctionSignature);
+
+            var odataQueryOptionParser = new ODataQueryOptionParser(model,
+                articleType, articleSet,
+                new Dictionary<string, string>()
+                {
+                    {"$apply", "aggregate(Tags with microsoft.union as uniqueValues)"}
+                });
+
+            ApplyClause applyClause = odataQueryOptionParser.ParseApply();
+
+        }
+
+        [Fact]
         public void AggregatedPropertiesTreatedAsOpenProperty()
         {
             var odataQueryOptionParser = new ODataQueryOptionParser(HardCodedTestModel.TestModel,
@@ -1243,6 +1782,23 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
                     {"$apply", "aggregate(FavoriteNumber with sum as Total)/compute(Total mul 2 as DoubleTotal)"}
                 });
             odataQueryOptionParser.ParseApply();
+            var orderByClause = odataQueryOptionParser.ParseOrderBy();
+            Assert.Equal(OrderByDirection.Ascending, orderByClause.Direction);
+            orderByClause.Expression.ShouldBeSingleValueOpenPropertyAccessQueryNode("DoubleTotal");
+        }
+
+        [Fact]
+        public void ComputedPropertyTreatedAsOpenPropertyInCastAndOrderBy()
+        {
+            var odataQueryOptionParser = new ODataQueryOptionParser(HardCodedTestModel.TestModel,
+                HardCodedTestModel.GetPersonType(), HardCodedTestModel.GetPeopleSet(),
+                new Dictionary<string, string>()
+                {
+                    {"$orderby", "DoubleTotal asc"},
+                    {"$apply", "aggregate(cast(FavoriteNumber, edm.int64) with sum as Total)/compute(Total mul 2 as DoubleTotal)"}
+                })
+            { Resolver = new ODataUriResolver() { EnableCaseInsensitive = true } };
+            var applyClause = odataQueryOptionParser.ParseApply();
             var orderByClause = odataQueryOptionParser.ParseOrderBy();
             Assert.Equal(OrderByDirection.Ascending, orderByClause.Direction);
             orderByClause.Expression.ShouldBeSingleValueOpenPropertyAccessQueryNode("DoubleTotal");
@@ -1998,7 +2554,7 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
         {
             FilterClause filter = ParseFilter("Fully.Qualified.Namespace.GetPriorAddress in Fully.Qualified.Namespace.GetPriorAddresses", HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType());
             var inNode = Assert.IsType<InNode>(filter.Expression);
-            Assert.Equal("Fully.Qualified.Namespace.GetPriorAddress", Assert.IsType<SingleValueFunctionCallNode>(inNode.Left).Name);
+            Assert.Equal("Fully.Qualified.Namespace.GetPriorAddress", Assert.IsType<SingleResourceFunctionCallNode>(inNode.Left).Name);
             Assert.Equal("Fully.Qualified.Namespace.GetPriorAddresses", Assert.IsType<CollectionResourceFunctionCallNode>(inNode.Right).Name);
         }
 
@@ -2575,7 +3131,11 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
             Assert.Equal(1, collectionNode.Collection.Count);
 
             ConstantNode constantNode = collectionNode.Collection.First();
-            Assert.Equal("\"\"", constantNode.LiteralText);
+            Assert.Equal(string.Empty, constantNode.Value);
+
+            // Since in the 'in' clause, the item string is normalized as plain JSON (using [] instead of ()), and the string item has changed from '' to "". 
+            // Thefore, the LiteralText is expected to be string.Empty.
+            Assert.Equal(string.Empty, constantNode.LiteralText);
         }
 
         [Theory]
@@ -2593,7 +3153,27 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
             Assert.Equal(1, collectionNode.Collection.Count);
 
             ConstantNode constantNode = collectionNode.Collection.First();
-            Assert.Equal("\"\"", constantNode.LiteralText);
+            Assert.Equal(string.Empty, constantNode.Value);
+            Assert.Equal(string.Empty, constantNode.LiteralText);
+        }
+
+        [Theory]
+        [InlineData("SSN in ('abc', null, '')", 0)] // at the end
+        [InlineData("SSN in ('', 'abc', null)", 1)] // at the start
+        [InlineData("SSN in (null, '', 'abc')", 2)] // in the middle
+        public void FilterWithInOperationWithEmptyStringWithOthersShouldWork(string inLiteral, int index)
+        {
+            FilterClause filter = ParseFilter(inLiteral, HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType());
+
+            var inNode = Assert.IsType<InNode>(filter.Expression);
+            Assert.Equal("SSN", Assert.IsType<SingleValuePropertyAccessNode>(inNode.Left).Property.Name);
+
+            CollectionConstantNode collectionNode = Assert.IsType<CollectionConstantNode>(inNode.Right);
+            Assert.Equal(3, collectionNode.Collection.Count);
+
+            collectionNode.Collection.ElementAt((index + 0) % 3).ShouldBeConstantQueryNode("abc");
+            collectionNode.Collection.ElementAt((index + 1) % 3).ShouldBeConstantQueryNode<string>(null);
+            collectionNode.Collection.ElementAt((index + 2) % 3).ShouldBeConstantQueryNode("");
         }
 
         [Theory]
@@ -2874,7 +3454,7 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
             OrderByClause orderby = ParseOrderBy("Fully.Qualified.Namespace.GetPriorAddress in Fully.Qualified.Namespace.GetPriorAddresses", HardCodedTestModel.TestModel, HardCodedTestModel.GetPersonType());
 
             var inNode = Assert.IsType<InNode>(orderby.Expression);
-            Assert.Equal("Fully.Qualified.Namespace.GetPriorAddress", Assert.IsType<SingleValueFunctionCallNode>(inNode.Left).Name);
+            Assert.Equal("Fully.Qualified.Namespace.GetPriorAddress", Assert.IsType<SingleResourceFunctionCallNode>(inNode.Left).Name);
             Assert.Equal("Fully.Qualified.Namespace.GetPriorAddresses", Assert.IsType<CollectionResourceFunctionCallNode>(inNode.Right).Name);
         }
 
@@ -3090,7 +3670,7 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
         }
 
         [Theory]
-        [InlineData("example in ('')", "\"\"")] // No space
+        [InlineData("example in ('')", "")] // No space
         [InlineData("example in (' ')", " ")] // 1 space
         [InlineData("example in ( '   ' )", "   ")] // 3 spaces
         [InlineData("example in ( \"  \" )", "  ")] // 2 spaces
@@ -3109,9 +3689,9 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
         }
 
         [Theory]
-        [InlineData("example in ('', \"  \")", "\"\"", "  ")]
-        [InlineData("example in (' ', \"\")", " ", "\"\"")]
-        [InlineData("example in ( '   ', '' )", "   ", "\"\"")]
+        [InlineData("example in ('', \"  \")", "", "  ")]
+        [InlineData("example in (' ', \"\")", " ", "")]
+        [InlineData("example in ( '   ', '' )", "   ", "")]
         [InlineData("example in ( \"  \", \" \" )", "  ", " ")]
         [InlineData("example in ( \"    \", ' ' )", "    ", " ")]
         public void FilterWithInOperationWithOpenTypesInMultipleEmptyStrings(string filterQueryString, string expectedFirstLiteral, string expectedSecondLiteral)
@@ -3140,6 +3720,31 @@ namespace Microsoft.OData.Tests.ScenarioTests.UriParser
         private static OrderByClause ParseOrderBy(string text, IEdmModel edmModel, IEdmType edmType, IEdmNavigationSource edmEntitySet = null)
         {
             return new ODataQueryOptionParser(edmModel, edmType, edmEntitySet, new Dictionary<string, string>() { { "$orderby", text } }).ParseOrderBy();
+        }
+
+        private static FilterClause ParseFilter(string text, bool caseInsensitive, IEdmModel edmModel, IEdmType edmType, IEdmNavigationSource edmEntitySet = null)
+        {
+            return new ODataQueryOptionParser(edmModel,
+                edmType,
+                edmEntitySet,
+                new Dictionary<string, string>() { { "$filter", text } })
+            { Resolver = new ODataUriResolver() { EnableCaseInsensitive = caseInsensitive } }
+            .ParseFilter();
+        }
+
+        private static FilterClause ParseFilterODataUriParserCaseInsensitive(string text, IEdmModel edmModel)
+        {
+            var parser = new ODataUriParser(edmModel, new Uri(text, UriKind.Relative))
+            {
+                Resolver = new UnqualifiedODataUriResolver()
+                {
+                    EnableCaseInsensitive = true,
+                },
+                UrlKeyDelimiter = ODataUrlKeyDelimiter.Slash,
+            };
+            parser.Settings.MaximumExpansionDepth = 2;
+            parser.ParsePath();
+            return parser.ParseFilter();
         }
     }
 }

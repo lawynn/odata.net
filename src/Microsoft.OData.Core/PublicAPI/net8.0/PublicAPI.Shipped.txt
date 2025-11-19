@@ -1,3 +1,31 @@
+Microsoft.OData.UriParser.PathCountSelectItem
+Microsoft.OData.UriParser.PathCountSelectItem.Filter.get -> Microsoft.OData.UriParser.FilterClause
+Microsoft.OData.UriParser.PathCountSelectItem.NavigationSource.get -> Microsoft.OData.Edm.IEdmNavigationSource
+Microsoft.OData.UriParser.PathCountSelectItem.PathCountSelectItem(Microsoft.OData.UriParser.ODataSelectPath selectedPath) -> void
+Microsoft.OData.UriParser.PathCountSelectItem.PathCountSelectItem(Microsoft.OData.UriParser.ODataSelectPath selectedPath, Microsoft.OData.Edm.IEdmNavigationSource navigationSource, Microsoft.OData.UriParser.FilterClause filter, Microsoft.OData.UriParser.SearchClause search) -> void
+Microsoft.OData.UriParser.PathCountSelectItem.Search.get -> Microsoft.OData.UriParser.SearchClause
+Microsoft.OData.UriParser.PathCountSelectItem.SelectedPath.get -> Microsoft.OData.UriParser.ODataSelectPath
+override Microsoft.OData.UriParser.PathCountSelectItem.HandleWith(Microsoft.OData.UriParser.SelectItemHandler handler) -> void
+override Microsoft.OData.UriParser.PathCountSelectItem.TranslateWith<T>(Microsoft.OData.UriParser.SelectItemTranslator<T> translator) -> T
+static readonly Microsoft.OData.ODataNullValue.Instance -> Microsoft.OData.ODataNullValue
+virtual Microsoft.OData.UriParser.SelectItemHandler.Handle(Microsoft.OData.UriParser.PathCountSelectItem item) -> void
+virtual Microsoft.OData.UriParser.SelectItemTranslator<T>.Translate(Microsoft.OData.UriParser.PathCountSelectItem item) -> T
+Microsoft.OData.ODataNestedResourceInfo.Count.get -> long?
+Microsoft.OData.ODataNestedResourceInfo.Count.set -> void
+Microsoft.OData.UriParser.ISyntacticTreeVisitor<T>.Visit(Microsoft.OData.UriParser.RootPathToken tokenIn) -> T
+Microsoft.OData.UriParser.QueryNodeKind.RootPath = 34 -> Microsoft.OData.UriParser.QueryNodeKind
+Microsoft.OData.UriParser.QueryTokenKind.RootPath = 33 -> Microsoft.OData.UriParser.QueryTokenKind
+Microsoft.OData.UriParser.RootPathNode
+Microsoft.OData.UriParser.RootPathNode.Path.get -> Microsoft.OData.UriParser.ODataPath
+Microsoft.OData.UriParser.RootPathNode.RootPathNode(Microsoft.OData.UriParser.ODataPath path, Microsoft.OData.Edm.IEdmTypeReference typeRef) -> void
+Microsoft.OData.UriParser.RootPathToken
+Microsoft.OData.UriParser.RootPathToken.RootPathToken() -> void
+Microsoft.OData.UriParser.RootPathToken.Segments.get -> System.Collections.Generic.IList<string>
+override Microsoft.OData.UriParser.RootPathNode.Accept<T>(Microsoft.OData.UriParser.QueryNodeVisitor<T> visitor) -> T
+override Microsoft.OData.UriParser.RootPathNode.TypeReference.get -> Microsoft.OData.Edm.IEdmTypeReference
+override Microsoft.OData.UriParser.RootPathToken.Accept<T>(Microsoft.OData.UriParser.ISyntacticTreeVisitor<T> visitor) -> T
+override Microsoft.OData.UriParser.RootPathToken.Kind.get -> Microsoft.OData.UriParser.QueryTokenKind
+virtual Microsoft.OData.UriParser.QueryNodeVisitor<T>.Visit(Microsoft.OData.UriParser.RootPathNode nodeIn) -> T
 Microsoft.OData.UriParser.CollectionOpenPropertyAccessNode.CollectionOpenPropertyAccessNode(Microsoft.OData.UriParser.SingleValueNode source, string openPropertyName, Microsoft.OData.Edm.IEdmCollectionTypeReference collectionType) -> void
 Microsoft.OData.UriParser.SingleValueOpenPropertyAccessNode.SingleValueOpenPropertyAccessNode(Microsoft.OData.UriParser.SingleValueNode source, string openPropertyName, Microsoft.OData.Edm.IEdmTypeReference typeReference) -> void
 Microsoft.Extensions.DependencyInjection.ODataServiceCollectionExtensions
@@ -1345,6 +1373,10 @@ Microsoft.OData.UriParser.CountSegmentToken.SearchOption.get -> Microsoft.OData.
 Microsoft.OData.UriParser.CountSegmentToken.SearchOption.set -> void
 Microsoft.OData.UriParser.CountVirtualPropertyNode
 Microsoft.OData.UriParser.CountVirtualPropertyNode.CountVirtualPropertyNode() -> void
+Microsoft.OData.UriParser.CustomQueryOptionNode
+Microsoft.OData.UriParser.CustomQueryOptionNode.CustomQueryOptionNode(string name, string value) -> void
+Microsoft.OData.UriParser.CustomQueryOptionNode.Name.get -> string
+Microsoft.OData.UriParser.CustomQueryOptionNode.Value.get -> string
 Microsoft.OData.UriParser.CustomQueryOptionToken
 Microsoft.OData.UriParser.CustomQueryOptionToken.CustomQueryOptionToken(string name, string value) -> void
 Microsoft.OData.UriParser.CustomQueryOptionToken.Name.get -> string
@@ -1724,6 +1756,7 @@ Microsoft.OData.UriParser.QueryNodeKind.CollectionResourceFunctionCall = 19 -> M
 Microsoft.OData.UriParser.QueryNodeKind.Constant = 1 -> Microsoft.OData.UriParser.QueryNodeKind
 Microsoft.OData.UriParser.QueryNodeKind.Convert = 2 -> Microsoft.OData.UriParser.QueryNodeKind
 Microsoft.OData.UriParser.QueryNodeKind.Count = 28 -> Microsoft.OData.UriParser.QueryNodeKind
+Microsoft.OData.UriParser.QueryNodeKind.CustomQueryOption = 35 -> Microsoft.OData.UriParser.QueryNodeKind
 Microsoft.OData.UriParser.QueryNodeKind.EntitySet = 22 -> Microsoft.OData.UriParser.QueryNodeKind
 Microsoft.OData.UriParser.QueryNodeKind.In = 32 -> Microsoft.OData.UriParser.QueryNodeKind
 Microsoft.OData.UriParser.QueryNodeKind.KeyLookup = 23 -> Microsoft.OData.UriParser.QueryNodeKind
@@ -2054,6 +2087,8 @@ override Microsoft.OData.UriParser.CountSegmentToken.NextToken.get -> Microsoft.
 override Microsoft.OData.UriParser.CountSegmentToken.NextToken.set -> void
 override Microsoft.OData.UriParser.CountVirtualPropertyNode.Kind.get -> Microsoft.OData.UriParser.QueryNodeKind
 override Microsoft.OData.UriParser.CountVirtualPropertyNode.TypeReference.get -> Microsoft.OData.Edm.IEdmTypeReference
+override Microsoft.OData.UriParser.CustomQueryOptionNode.Accept<T>(Microsoft.OData.UriParser.QueryNodeVisitor<T> visitor) -> T
+override Microsoft.OData.UriParser.CustomQueryOptionNode.Kind.get -> Microsoft.OData.UriParser.QueryNodeKind
 override Microsoft.OData.UriParser.CustomQueryOptionToken.Accept<T>(Microsoft.OData.UriParser.ISyntacticTreeVisitor<T> visitor) -> T
 override Microsoft.OData.UriParser.CustomQueryOptionToken.Kind.get -> Microsoft.OData.UriParser.QueryTokenKind
 override Microsoft.OData.UriParser.DottedIdentifierToken.Accept<T>(Microsoft.OData.UriParser.ISyntacticTreeVisitor<T> visitor) -> T
@@ -2450,6 +2485,7 @@ virtual Microsoft.OData.UriParser.QueryNodeVisitor<T>.Visit(Microsoft.OData.UriP
 virtual Microsoft.OData.UriParser.QueryNodeVisitor<T>.Visit(Microsoft.OData.UriParser.ConstantNode nodeIn) -> T
 virtual Microsoft.OData.UriParser.QueryNodeVisitor<T>.Visit(Microsoft.OData.UriParser.ConvertNode nodeIn) -> T
 virtual Microsoft.OData.UriParser.QueryNodeVisitor<T>.Visit(Microsoft.OData.UriParser.CountNode nodeIn) -> T
+virtual Microsoft.OData.UriParser.QueryNodeVisitor<T>.Visit(Microsoft.OData.UriParser.CustomQueryOptionNode nodeIn) -> T
 virtual Microsoft.OData.UriParser.QueryNodeVisitor<T>.Visit(Microsoft.OData.UriParser.InNode nodeIn) -> T
 virtual Microsoft.OData.UriParser.QueryNodeVisitor<T>.Visit(Microsoft.OData.UriParser.NamedFunctionParameterNode nodeIn) -> T
 virtual Microsoft.OData.UriParser.QueryNodeVisitor<T>.Visit(Microsoft.OData.UriParser.NonResourceRangeVariableReferenceNode nodeIn) -> T

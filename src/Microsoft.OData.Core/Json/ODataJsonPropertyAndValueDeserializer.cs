@@ -7,15 +7,17 @@
 namespace Microsoft.OData.Json
 {
     #region Namespaces
+    using Microsoft.OData.Core;
+    using Microsoft.OData.Edm;
+    using Microsoft.OData.Metadata;
+    using Microsoft.VisualBasic;
     using System;
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
+    using System.Linq;
     using System.Threading.Tasks;
-    using Microsoft.OData.Edm;
-    using Microsoft.OData.Metadata;
-    using Microsoft.OData.Core;
     #endregion Namespaces
 
     /// <summary>
@@ -1027,7 +1029,32 @@ namespace Microsoft.OData.Json
             resourceState.PropertyAndAnnotationCollector.CheckForDuplicatePropertyNames(property);
             ODataResourceBase resource = resourceState.Resource;
             Debug.Assert(resource != null, "resource != null");
-            resource.Properties = resource.Properties.ConcatToReadOnlyEnumerable("Properties", property);
+
+            // To avoid repeated computations for the property verification logic inside the
+            // resource.Properties setter, we update the resource.Properties in-place
+            // without invoking the setter each time.
+            // Since the resource and properties are created internally by the reader,
+            // we don't need to verify the properties if we can guarantee that we are only
+            // adding properties with acceptable values (i.e. not ODataResourceValue).
+            // We use debug-time assertions instead to catch such bugs in tests.
+
+            // We should rethink the current approach to property verification.
+            // See: https://github.com/OData/odata.net/issues/3263
+
+            Debug.Assert(!(property is ODataProperty propertyWithValue && propertyWithValue.Value is ODataResourceValue),
+                Error.Format(SRResources.ODataResource_PropertyValueCannotBeODataResourceValue, property.Name));
+            Debug.Assert(
+                !(property is ODataProperty collectionProp && collectionProp.Value is ODataCollectionValue collectionValue && collectionValue.Items.Any(item => item is ODataResourceValue)),
+                Error.Format(SRResources.ODataResource_PropertyValueCannotBeODataResourceValue, property.Name));
+
+            if (resource.Properties.IsEmptyReadOnlyEnumerable())
+            {
+                resource.Properties = new ReadOnlyEnumerable<ODataPropertyInfo>();
+            }
+
+            // Despite the name the resource.Properties type here is not actually
+            // readonly, it supports appending in-place.
+            resource.Properties.ConcatToReadOnlyEnumerable("Properties", property);
         }
 
         /// <summary>
@@ -2229,13 +2256,12 @@ namespace Microsoft.OData.Json
                     propertyAndAnnotationCollector = this.CreatePropertyAndAnnotationCollector();
 
                     // Read the payload type name
-                    Tuple<bool, string> readPayloadTypeFromObjectResult = await this.TryReadPayloadTypeFromObjectAsync(
+                    (bool typeNameFoundInPayload, string tempPayloadTypeName) = await this.TryReadPayloadTypeFromObjectAsync(
                         propertyAndAnnotationCollector,
                         insideResourceValue).ConfigureAwait(false);
-                    bool typeNameFoundInPayload = readPayloadTypeFromObjectResult.Item1;
                     if (typeNameFoundInPayload)
                     {
-                        payloadTypeName = readPayloadTypeFromObjectResult.Item2;
+                        payloadTypeName = tempPayloadTypeName;
                     }
                 }
                 finally
@@ -2465,16 +2491,23 @@ namespace Microsoft.OData.Json
         ///                 JsonNodeType.StartObject
         ///                 JsonNodeType.StartArray
         /// </remarks>
-        protected async Task<Tuple<bool, string>> TryReadODataTypeAnnotationValueAsync(string annotationName)
+        protected ValueTask<(bool IsODataTypeAnnotation, string AnnotationValue)> TryReadODataTypeAnnotationValueAsync(string annotationName)
         {
             Debug.Assert(!string.IsNullOrEmpty(annotationName), "!string.IsNullOrEmpty(annotationName)");
 
-            if (string.Equals(annotationName, ODataAnnotationNames.ODataType, StringComparison.Ordinal))
+            if (!string.Equals(annotationName, ODataAnnotationNames.ODataType, StringComparison.Ordinal))
             {
-                return Tuple.Create(true, await this.ReadODataTypeAnnotationValueAsync().ConfigureAwait(false));
+                return ValueTask.FromResult<(bool, string)>((false, null));
             }
 
-            return Tuple.Create(false, (string)null);
+            return AwaitReadODataTypeAnnotationValueAsync(this);
+
+            static async ValueTask<(bool, string)> AwaitReadODataTypeAnnotationValueAsync(ODataJsonPropertyAndValueDeserializer thisParam)
+            {
+                string typeName = await thisParam.ReadODataTypeAnnotationValueAsync().ConfigureAwait(false);
+                
+                return (true, typeName);
+            }
         }
 
         /// <summary>
@@ -2492,12 +2525,11 @@ namespace Microsoft.OData.Json
                 propertyAnnotationName.StartsWith(ODataJsonConstants.ODataAnnotationNamespacePrefix, StringComparison.Ordinal),
                 "The method should only be called with OData. annotations");
 
-            Tuple<bool, string> readODataTypeAnnotationResult = await this.TryReadODataTypeAnnotationValueAsync(propertyAnnotationName)
-                .ConfigureAwait(false);
-            if (readODataTypeAnnotationResult.Item1)
+            (bool isODataTypeAnnotation, string annotationValue) = await this.TryReadODataTypeAnnotationValueAsync(
+                propertyAnnotationName).ConfigureAwait(false);
+            if (isODataTypeAnnotation)
             {
-                string typeName = readODataTypeAnnotationResult.Item2;
-                return typeName;
+                return annotationValue;
             }
 
             throw new ODataException(Error.Format(SRResources.ODataJsonPropertyAndValueDeserializer_UnexpectedAnnotationProperties, propertyAnnotationName));
@@ -2517,7 +2549,7 @@ namespace Microsoft.OData.Json
         /// Post-Condition: JsonNodeType.Property       - the next property after the annotation or if the reader did not move
         ///                 JsonNodeType.EndObject      - end of the parent object
         /// </remarks>
-        private async Task<Tuple<bool, string>> TryReadODataTypeAnnotationAsync()
+        private async Task<(bool IsReadSuccessfully, string PayloadTypeName)> TryReadODataTypeAnnotationAsync()
         {
             this.AssertJsonCondition(JsonNodeType.Property);
             string payloadTypeName = null;
@@ -2538,7 +2570,7 @@ namespace Microsoft.OData.Json
 
             this.AssertJsonCondition(JsonNodeType.Property, JsonNodeType.EndObject);
 
-            return Tuple.Create(result, payloadTypeName);
+            return (result, payloadTypeName);
         }
 
         /// <summary>
@@ -2588,12 +2620,9 @@ namespace Microsoft.OData.Json
             }
             else
             {
-                string payloadTypeName = null;
-                Tuple<bool, string> readingResourcePropertyResult = await this.ReadingResourcePropertyAsync(
+                (bool isReadingResourceProperty, string payloadTypeName) = await this.ReadingResourcePropertyAsync(
                     propertyAndAnnotationCollector,
                     expectedPropertyTypeReference).ConfigureAwait(false);
-                bool isReadingResourceProperty = readingResourcePropertyResult.Item1;
-                payloadTypeName = readingResourcePropertyResult.Item2;
 
                 if (isReadingResourceProperty)
                 {
@@ -3222,13 +3251,12 @@ namespace Microsoft.OData.Json
                 // Read the payload type name
                 if (!insideResourceValue)
                 {
-                    Tuple<bool, string> readPayloadTypeFromObjectResult = await this.TryReadPayloadTypeFromObjectAsync(
+                    (typeNameFoundInPayload, string tempPayloadTypeName) = await this.TryReadPayloadTypeFromObjectAsync(
                         propertyAndAnnotationCollector,
                         insideResourceValue).ConfigureAwait(false);
-                    typeNameFoundInPayload = readPayloadTypeFromObjectResult.Item1;
                     if (typeNameFoundInPayload)
                     {
-                        payloadTypeName = readPayloadTypeFromObjectResult.Item2;
+                        payloadTypeName = tempPayloadTypeName;
                     }
                 }
             }
@@ -3400,7 +3428,7 @@ namespace Microsoft.OData.Json
         ///                                 or the first property after the 'odata.type' annotation.
         ///                 EndObject       for an empty JSON object or an object with only the 'odata.type' annotation
         /// </remarks>
-        private async Task<Tuple<bool, string>> TryReadPayloadTypeFromObjectAsync(
+        private async Task<(bool TypeNameFoundInPayload, string PayloadTypeName)> TryReadPayloadTypeFromObjectAsync(
             PropertyAndAnnotationCollector propertyAndAnnotationCollector,
             bool insideResourceValue)
         {
@@ -3409,7 +3437,7 @@ namespace Microsoft.OData.Json
                 (this.JsonReader.NodeType == JsonNodeType.StartObject && !insideResourceValue) ||
                 ((this.JsonReader.NodeType == JsonNodeType.Property || this.JsonReader.NodeType == JsonNodeType.EndObject) && insideResourceValue),
                 "Pre-Condition: JsonNodeType.StartObject when not inside complex value; JsonNodeType.Property or JsonNodeType.EndObject otherwise.");
-            bool readTypeName = false;
+            bool typeNameFoundInPayload = false;
             string payloadTypeName = null;
 
             // If not already positioned inside the JSON object, read over the object start
@@ -3421,12 +3449,11 @@ namespace Microsoft.OData.Json
 
             if (this.JsonReader.NodeType == JsonNodeType.Property)
             {
-                Tuple<bool, string> readODataTypeAnnotationResult = await this.TryReadODataTypeAnnotationAsync()
+                (typeNameFoundInPayload, string tempPayloadTypeName) = await this.TryReadODataTypeAnnotationAsync()
                     .ConfigureAwait(false);
-                readTypeName = readODataTypeAnnotationResult.Item1;
-                if (readTypeName)
+                if (typeNameFoundInPayload)
                 {
-                    payloadTypeName = readODataTypeAnnotationResult.Item2;
+                    payloadTypeName = tempPayloadTypeName;
                     // Register the odata.type annotation we just found with the duplicate property names checker.
                     propertyAndAnnotationCollector.MarkPropertyAsProcessed(ODataAnnotationNames.ODataType);
                 }
@@ -3434,7 +3461,7 @@ namespace Microsoft.OData.Json
 
             this.AssertJsonCondition(JsonNodeType.Property, JsonNodeType.EndObject);
 
-            return Tuple.Create(readTypeName, payloadTypeName);
+            return (typeNameFoundInPayload, payloadTypeName);
         }
 
         /// <summary>
@@ -3453,7 +3480,7 @@ namespace Microsoft.OData.Json
         /// <remarks>
         /// This method does not move the reader.
         /// </remarks>
-        private async Task<Tuple<bool, string>> ReadingResourcePropertyAsync(
+        private async Task<(bool IsReadingResourceProperty, string PayloadTypeName)> ReadingResourcePropertyAsync(
             PropertyAndAnnotationCollector propertyAndAnnotationCollector,
             IEdmTypeReference expectedPropertyTypeReference)
         {
@@ -3472,11 +3499,11 @@ namespace Microsoft.OData.Json
             // properties).
             if (this.JsonReader.NodeType == JsonNodeType.Property)
             {
-                Tuple<bool, string> readODataTypeAnnotationResult = await this.TryReadODataTypeAnnotationAsync()
+                (bool typeNameFoundInPayload, string tempPayloadTypeName) = await this.TryReadODataTypeAnnotationAsync()
                     .ConfigureAwait(false);
-                if (readODataTypeAnnotationResult.Item1)
+                if (typeNameFoundInPayload)
                 {
-                    payloadTypeName = readODataTypeAnnotationResult.Item2;
+                    payloadTypeName = tempPayloadTypeName;
                     // Register the odata.type annotation we just found with the duplicate property names checker.
                     propertyAndAnnotationCollector.MarkPropertyAsProcessed(ODataAnnotationNames.ODataType);
 
@@ -3500,7 +3527,7 @@ namespace Microsoft.OData.Json
                 }
             }
 
-            return Tuple.Create(readingResourceProperty, payloadTypeName);
+            return (readingResourceProperty, payloadTypeName);
         }
 
         /// <summary>

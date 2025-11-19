@@ -106,11 +106,29 @@ namespace Microsoft.OData.Core {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to $apply/aggregate collection expression must apply to custom mothod..
+        /// </summary>
+        internal static string ApplyBinder_AggregateCollectionExpressionOnlySupportCustomMethod {
+            get {
+                return ResourceManager.GetString("ApplyBinder_AggregateCollectionExpressionOnlySupportCustomMethod", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to $apply/aggregate expression &apos;{0}&apos; operation does not support value type &apos;{1}&apos;..
         /// </summary>
         internal static string ApplyBinder_AggregateExpressionIncompatibleTypeForMethod {
             get {
                 return ResourceManager.GetString("ApplyBinder_AggregateExpressionIncompatibleTypeForMethod", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to $apply/aggregate expression node kind &apos;{0}&apos; is not supported..
+        /// </summary>
+        internal static string ApplyBinder_AggregateExpressionNodeNotSupported {
+            get {
+                return ResourceManager.GetString("ApplyBinder_AggregateExpressionNodeNotSupported", resourceCulture);
             }
         }
         
@@ -1475,6 +1493,15 @@ namespace Microsoft.OData.Core {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to An empty root path is not valid..
+        /// </summary>
+        internal static string MetadataBinder_EmptyRootPath {
+            get {
+                return ResourceManager.GetString("MetadataBinder_EmptyRootPath", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The $filter expression must evaluate to a single boolean value..
         /// </summary>
         internal static string MetadataBinder_FilterExpressionNotSingleValue {
@@ -1534,6 +1561,15 @@ namespace Microsoft.OData.Core {
         internal static string MetadataBinder_InvalidIdentifierInQueryOption {
             get {
                 return ResourceManager.GetString("MetadataBinder_InvalidIdentifierInQueryOption", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The $root literal can be used in expressions to refer to resources of the same service. It can be used as a single-valued expression or within complex or collection literals..
+        /// </summary>
+        internal static string MetadataBinder_InvalidRootPath {
+            get {
+                return ResourceManager.GetString("MetadataBinder_InvalidRootPath", resourceCulture);
             }
         }
         
@@ -6436,6 +6472,15 @@ namespace Microsoft.OData.Core {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The continuation task returned by the operation cannot be null..
+        /// </summary>
+        internal static string TaskUtils_NullContinuationTask {
+            get {
+                return ResourceManager.GetString("TaskUtils_NullContinuationTask", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The value &apos;{0}&apos; is not a qualified type name. A qualified type name is expected..
         /// </summary>
         internal static string TypeUtils_TypeNameIsNotQualified {
@@ -6787,6 +6832,15 @@ namespace Microsoft.OData.Core {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to $root should be the top-level segment..
+        /// </summary>
+        internal static string UriQueryExpressionParser_RootPathNotTopLevel {
+            get {
+                return ResourceManager.GetString("UriQueryExpressionParser_RootPathNotTopLevel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Recursion depth exceeded allowed limit..
         /// </summary>
         internal static string UriQueryExpressionParser_TooDeep {
@@ -6927,6 +6981,15 @@ namespace Microsoft.OData.Core {
         internal static string UriUtils_DateTimeOffsetInvalidFormat {
             get {
                 return ResourceManager.GetString("UriUtils_DateTimeOffsetInvalidFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to This operation is not supported for a relative URI. (parameter: &apos;{0}&apos;)..
+        /// </summary>
+        internal static string UriUtils_RequiresAbsoluteUri {
+            get {
+                return ResourceManager.GetString("UriUtils_RequiresAbsoluteUri", resourceCulture);
             }
         }
         

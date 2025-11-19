@@ -812,7 +812,7 @@ namespace Microsoft.OData.Tests.Json
             this.messageReaderSettings = new ODataMessageReaderSettings();
             ODataJsonPropertyAndValueDeserializer deserializer = new ODataJsonPropertyAndValueDeserializer(this.CreateJsonInputContext("{\"@odata.context\":\"http://odata.org/test/$metadata#Customers(1)/Name\",\"value\":null}", model));
             ODataProperty property = deserializer.ReadTopLevelProperty(primitiveTypeRef);
-            TestUtils.AssertODataValueAreEqual(new ODataNullValue(), property.ODataValue);
+            TestUtils.AssertODataValueAreEqual(ODataNullValue.Instance, property.ODataValue);
         }
 
         [Fact]
@@ -823,7 +823,7 @@ namespace Microsoft.OData.Tests.Json
             this.messageReaderSettings = new ODataMessageReaderSettings();
             ODataJsonPropertyAndValueDeserializer deserializer = new ODataJsonPropertyAndValueDeserializer(this.CreateJsonInputContext("{\"@odata.context\":\"http://odata.org/test/$metadata#Customers(1)/Name\",\"@odata.null\":true}", model));
             ODataProperty property = deserializer.ReadTopLevelProperty(primitiveTypeRef);
-            TestUtils.AssertODataValueAreEqual(new ODataNullValue(), property.ODataValue);
+            TestUtils.AssertODataValueAreEqual(ODataNullValue.Instance, property.ODataValue);
         }
 
         [Fact]
@@ -861,21 +861,32 @@ namespace Microsoft.OData.Tests.Json
             TestUtils.AssertODataValueAreEqual(new ODataPrimitiveValue(value), property.ODataValue);
         }
 
-        [Fact]
-        public void TopLevelPropertyShouldReadContextUriAsRelativeUri()
+        [Theory]
+        [InlineData("{\"@odata.context\":\"Customers(1)/Name\",\"value\":\"Joe\"}")]
+        [InlineData("{\"@odata.context\":\"/Customers(1)/Name\",\"value\":\"Joe\"}")]
+        [InlineData("{\"@odata.context\":\"./Customers(1)/Name\",\"value\":\"Joe\"}")]
+        [InlineData("{\"@odata.context\":\"$metadata#Customers(1)/Name\",\"value\":\"Joe\"}")]
+        [InlineData("{\"@odata.context\":\"/$metadata#Customers(1)/Name\",\"value\":\"Joe\"}")]
+        [InlineData("{\"@odata.context\":\"./$metadata#Customers(1)/Name\",\"value\":\"Joe\"}")]
+        [InlineData("{\"@odata.context\":\"../$metadata#Customers(1)/Name\",\"value\":\"Joe\"}")]
+        [InlineData("{\"@odata.context\":\"../../$metadata#Customers(1)/Name\",\"value\":\"Joe\"}")]
+        [InlineData("{\"@odata.context\":\"../../../$metadata#Customers(1)/Name\",\"value\":\"Joe\"}")]
+        [InlineData("{\"@odata.context\":\"../../../../$metadata#Customers(1)/Name\",\"value\":\"Joe\"}")]
+        [InlineData("{\"@odata.context\":\"../../../../../$metadata#Customers(1)/Name\",\"value\":\"Joe\"}")]
+        [InlineData("{\"@odata.context\":\"../../../../../../$metadata#Customers(1)/Name\",\"value\":\"Joe\"}")]
+        [InlineData("{\"@odata.context\":\"../../../../../../../$metadata#Customers(1)/Name\",\"value\":\"Joe\"}")]
+        public void TopLevelPropertyShouldReadContextUriAsRelativeUri(string payload)
         {
+            // Arrange
             var model = this.CreateEdmModelWithEntity();
             var primitiveTypeRef = ((IEdmEntityType)model.SchemaElements.First()).Properties().First().Type;
             this.messageReaderSettings = new ODataMessageReaderSettings() { BaseUri = new Uri("http://odata.org/test/") };
-            ODataJsonPropertyAndValueDeserializer deserializer = new ODataJsonPropertyAndValueDeserializer(this.CreateJsonInputContext("{\"@odata.context\":\"Customers(1)/Name\",\"value\":\"Joe\"}", model));
+
+            // Act
+            ODataJsonPropertyAndValueDeserializer deserializer = new ODataJsonPropertyAndValueDeserializer(this.CreateJsonInputContext(payload, model));
             ODataProperty property = deserializer.ReadTopLevelProperty(primitiveTypeRef);
 
-            Assert.NotNull(property);
-            Assert.Equal("http://odata.org/test/$metadata#Customers(1)/Name", deserializer.ContextUriParseResult.ContextUri.ToString());
-
-            deserializer = new ODataJsonPropertyAndValueDeserializer(this.CreateJsonInputContext("{\"@odata.context\":\"$metadata#Customers(1)/Name\",\"value\":\"Joe\"}", model));
-            property = deserializer.ReadTopLevelProperty(primitiveTypeRef);
-
+            // Assert
             Assert.NotNull(property);
             Assert.Equal("http://odata.org/test/$metadata#Customers(1)/Name", deserializer.ContextUriParseResult.ContextUri.ToString());
         }
@@ -1365,7 +1376,7 @@ namespace Microsoft.OData.Tests.Json
                     Assert.Contains("odata.type", odataPropertyAnnotations);
                     Assert.Equal("#Collection(Edm.String)", odataPropertyAnnotations["odata.type"]);
 
-                    return TaskUtils.CompletedTask;
+                    return Task.CompletedTask;
                 });
         }
 
@@ -1385,7 +1396,7 @@ namespace Microsoft.OData.Tests.Json
                     Assert.Empty(propertyAndAnnotationCollector.GetCustomScopeAnnotation());
                     Assert.Empty(propertyAndAnnotationCollector.GetCustomPropertyAnnotations("Prop"));
 
-                    return TaskUtils.CompletedTask;
+                    return Task.CompletedTask;
                 });
         }
 
@@ -1403,7 +1414,7 @@ namespace Microsoft.OData.Tests.Json
                         PropertyParsingResult.EndOfObject,
                         propertyParsingResult);
 
-                    return TaskUtils.CompletedTask;
+                    return Task.CompletedTask;
                 });
         }
 
@@ -1453,7 +1464,7 @@ namespace Microsoft.OData.Tests.Json
                         PropertyParsingResult.EndOfObject,
                         propertyParsingResult);
 
-                    return TaskUtils.CompletedTask;
+                    return Task.CompletedTask;
                 });
         }
 
@@ -1471,7 +1482,7 @@ namespace Microsoft.OData.Tests.Json
                         PropertyParsingResult.ODataInstanceAnnotation,
                         propertyParsingResult);
 
-                    return TaskUtils.CompletedTask;
+                    return Task.CompletedTask;
                 });
         }
 
@@ -1489,7 +1500,7 @@ namespace Microsoft.OData.Tests.Json
                         PropertyParsingResult.MetadataReferenceProperty,
                         propertyParsingResult);
 
-                    return TaskUtils.CompletedTask;
+                    return Task.CompletedTask;
                 });
         }
 
@@ -1507,7 +1518,7 @@ namespace Microsoft.OData.Tests.Json
                         PropertyParsingResult.PropertyWithoutValue,
                         propertyParsingResult);
 
-                    return TaskUtils.CompletedTask;
+                    return Task.CompletedTask;
                 });
         }
 
@@ -1571,7 +1582,7 @@ namespace Microsoft.OData.Tests.Json
                     Assert.Contains("odata.type", odataPropertyAnnotations);
                     Assert.Equal("#Edm.String", odataPropertyAnnotations["odata.type"]);
 
-                    return TaskUtils.CompletedTask;
+                    return Task.CompletedTask;
                 });
         }
 
@@ -1603,7 +1614,7 @@ namespace Microsoft.OData.Tests.Json
                         (PropertyParsingResult)Enum.Parse(typeof(PropertyParsingResult), expectedPropertyParsingResult),
                         propertyParsingResult);
 
-                    return TaskUtils.CompletedTask;
+                    return Task.CompletedTask;
                 });
         }
 
@@ -1644,7 +1655,7 @@ namespace Microsoft.OData.Tests.Json
                 {
                     Assert.Equal(PropertyParsingResult.EndOfObject, propertyParsingResult);
 
-                    return TaskUtils.CompletedTask;
+                    return Task.CompletedTask;
                 });
         }
 
@@ -2651,7 +2662,7 @@ namespace Microsoft.OData.Tests.Json
 
                 if (verificationDelegate == null)
                 {
-                    verificationDelegate = (arg1, arg2, arg3, arg4) => TaskUtils.CompletedTask;
+                    verificationDelegate = (arg1, arg2, arg3, arg4) => Task.CompletedTask;
                 }
 
                 if (propertyAndAnnotationCollector == null)

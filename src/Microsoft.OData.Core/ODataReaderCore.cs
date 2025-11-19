@@ -18,6 +18,7 @@ namespace Microsoft.OData
     using Microsoft.OData.Core;
     using Microsoft.OData.Edm;
     using Microsoft.OData.Metadata;
+    using static Microsoft.OData.ODataWriterCore;
 
     #endregion Namespaces
 
@@ -388,7 +389,7 @@ namespace Microsoft.OData
         public override sealed bool Read()
         {
             this.VerifyCanRead(true);
-            return this.InterceptException(this.ReadSynchronously);
+            return this.InterceptException(static (thisParam) => thisParam.ReadSynchronously());
         }
 
         /// <summary>
@@ -398,7 +399,7 @@ namespace Microsoft.OData
         public override sealed Task<bool> ReadAsync()
         {
             this.VerifyCanRead(false);
-            return this.InterceptExceptionAsync(thisParam => thisParam.ReadAsynchronously());
+            return this.InterceptExceptionAsync(static (thisParam) => thisParam.ReadAsynchronously());
         }
 
         /// <summary>
@@ -420,7 +421,7 @@ namespace Microsoft.OData
             }
 
             scope.StreamingState = StreamingState.Streaming;
-            return new ODataNotificationStream(this.InterceptException(this.CreateReadStreamImplementation), this);
+            return new ODataNotificationStream(this.InterceptException(static (thisParam) => thisParam.CreateReadStreamImplementation()), this);
         }
 
         /// <summary>
@@ -439,7 +440,7 @@ namespace Microsoft.OData
                 }
 
                 scope.StreamingState = StreamingState.Streaming;
-                return new ODataNotificationReader(this.InterceptException(this.CreateTextReaderImplementation), this);
+                return new ODataNotificationReader(this.InterceptException(static (thisParam) => thisParam.CreateTextReaderImplementation()), this);
             }
             else
             {
@@ -460,9 +461,15 @@ namespace Microsoft.OData
         /// <returns>A task for method called when a stream is requested.</returns>
         Task IODataStreamListener.StreamRequestedAsync()
         {
-            return TaskUtils.GetTaskForSynchronousOperation(
-                (thisParam) => ((IODataStreamListener)thisParam).StreamRequested(),
-                this);
+            try
+            {
+                ((IODataStreamListener)this).StreamRequested();
+                return Task.CompletedTask;
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException(ex);
+            }
         }
 
         /// <summary>
@@ -483,9 +490,15 @@ namespace Microsoft.OData
         /// <returns>A task that represents the asynchronous operation.</returns>
         Task IODataStreamListener.StreamDisposedAsync()
         {
-            return TaskUtils.GetTaskForSynchronousOperation(
-                (thisParam) => ((IODataStreamListener)thisParam).StreamDisposed(),
-                this);
+            try
+            {
+                ((IODataStreamListener)this).StreamDisposed();
+                return Task.CompletedTask;
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException(ex);
+            }
         }
 
         /// <summary>
@@ -811,7 +824,14 @@ namespace Microsoft.OData
             // We are reading from the fully buffered read stream here; thus it is ok
             // to use synchronous reads and then return a completed task
             // NOTE: once we switch to fully async reading this will have to change
-            return TaskUtils.GetTaskForSynchronousOperation<bool>(this.ReadImplementation);
+            try
+            {
+                return Task.FromResult(this.ReadImplementation());
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException<bool>(ex);
+            }
         }
 
         /// <summary>
@@ -935,11 +955,11 @@ namespace Microsoft.OData
         /// <typeparam name="T">The type returned from the <paramref name="action"/> to execute.</typeparam>
         /// <param name="action">The action to execute.</param>
         /// <returns>The result of executing the <paramref name="action"/>.</returns>
-        private T InterceptException<T>(Func<T> action)
+        private T InterceptException<T>(Func<ODataReaderCore, T> action)
         {
             try
             {
-                return action();
+                return action(this);
             }
             catch (Exception e)
             {

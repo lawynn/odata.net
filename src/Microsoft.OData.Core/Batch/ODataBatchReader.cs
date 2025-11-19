@@ -140,7 +140,7 @@ namespace Microsoft.OData
         public bool Read()
         {
             this.VerifyCanRead(true);
-            return this.InterceptException((thisParam) => thisParam.ReadSynchronously());
+            return this.InterceptException(static (thisParam) => thisParam.ReadSynchronously());
         }
 
         /// <summary>Asynchronously reads the next part from the batch message payload.</summary>
@@ -148,7 +148,7 @@ namespace Microsoft.OData
         public Task<bool> ReadAsync()
         {
             this.VerifyCanRead(false);
-            return this.InterceptExceptionAsync((thisParam) => thisParam.ReadAsynchronously());
+            return this.InterceptExceptionAsync(static (thisParam) => thisParam.ReadAsynchronously());
         }
 
         /// <summary>Returns an <see cref="ODataBatchOperationRequestMessage" /> for reading the content of a batch operation.</summary>
@@ -157,7 +157,7 @@ namespace Microsoft.OData
         {
             this.VerifyCanCreateOperationRequestMessage(synchronousCall: true);
             ODataBatchOperationRequestMessage result =
-                this.InterceptException((thisParam) => thisParam.CreateOperationRequestMessageImplementation());
+                this.InterceptException(static (thisParam) => thisParam.CreateOperationRequestMessageImplementation());
             this.ReaderOperationState = OperationState.MessageCreated;
             this.contentIdToAddOnNextRead = result.ContentId;
             return result;
@@ -169,7 +169,7 @@ namespace Microsoft.OData
         {
             this.VerifyCanCreateOperationRequestMessage(synchronousCall: false);
             ODataBatchOperationRequestMessage result = await this.InterceptExceptionAsync(
-                (thisParam) => thisParam.CreateOperationRequestMessageImplementationAsync()).ConfigureAwait(false);
+                static (thisParam) => thisParam.CreateOperationRequestMessageImplementationAsync()).ConfigureAwait(false);
             this.ReaderOperationState = OperationState.MessageCreated;
             this.contentIdToAddOnNextRead = result.ContentId;
 
@@ -182,7 +182,7 @@ namespace Microsoft.OData
         {
             this.VerifyCanCreateOperationResponseMessage(synchronousCall: true);
             ODataBatchOperationResponseMessage result =
-                this.InterceptException((thisParam) => thisParam.CreateOperationResponseMessageImplementation());
+                this.InterceptException(static (thisParam) => thisParam.CreateOperationResponseMessageImplementation());
             this.ReaderOperationState = OperationState.MessageCreated;
             return result;
         }
@@ -193,7 +193,7 @@ namespace Microsoft.OData
         {
             this.VerifyCanCreateOperationResponseMessage(synchronousCall: false);
             ODataBatchOperationResponseMessage result = await this.InterceptExceptionAsync(
-                (thisParam) => thisParam.CreateOperationResponseMessageImplementationAsync()).ConfigureAwait(false);
+                static (thisParam) => thisParam.CreateOperationResponseMessageImplementationAsync()).ConfigureAwait(false);
 
             this.ReaderOperationState = OperationState.MessageCreated;
 
@@ -218,7 +218,7 @@ namespace Microsoft.OData
         Task IODataStreamListener.StreamRequestedAsync()
         {
             this.operationState = OperationState.StreamRequested;
-            return TaskUtils.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -236,7 +236,7 @@ namespace Microsoft.OData
         Task IODataStreamListener.StreamDisposedAsync()
         {
             this.operationState = OperationState.StreamDisposed;
-            return TaskUtils.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -383,7 +383,14 @@ namespace Microsoft.OData
         /// </returns>
         protected virtual Task<ODataBatchOperationRequestMessage> CreateOperationRequestMessageImplementationAsync()
         {
-            return TaskUtils.GetTaskForSynchronousOperation(this.CreateOperationRequestMessageImplementation);
+            try
+            {
+                return Task.FromResult(this.CreateOperationRequestMessageImplementation());
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException<ODataBatchOperationRequestMessage>(ex);
+            }
         }
 
         /// <summary>
@@ -397,7 +404,14 @@ namespace Microsoft.OData
         /// </returns>
         protected virtual Task<ODataBatchOperationResponseMessage> CreateOperationResponseMessageImplementationAsync()
         {
-            return TaskUtils.GetTaskForSynchronousOperation(this.CreateOperationResponseMessageImplementation);
+            try
+            {
+                return Task.FromResult(this.CreateOperationResponseMessageImplementation());
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException<ODataBatchOperationResponseMessage>(ex);
+            }
         }
 
         /// <summary>
@@ -409,7 +423,14 @@ namespace Microsoft.OData
         /// </returns>
         protected virtual Task<ODataBatchReaderState> ReadAtStartImplementationAsync()
         {
-            return TaskUtils.GetTaskForSynchronousOperation(this.ReadAtStartImplementation);
+            try
+            {
+                return Task.FromResult(this.ReadAtStartImplementation());
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException<ODataBatchReaderState>(ex);
+            }
         }
 
         /// <summary>
@@ -421,7 +442,14 @@ namespace Microsoft.OData
         /// </returns>
         protected virtual Task<ODataBatchReaderState> ReadAtOperationImplementationAsync()
         {
-            return TaskUtils.GetTaskForSynchronousOperation(this.ReadAtOperationImplementation);
+            try
+            {
+                return Task.FromResult(this.ReadAtOperationImplementation());
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException<ODataBatchReaderState>(ex);
+            }
         }
 
         /// <summary>
@@ -433,7 +461,14 @@ namespace Microsoft.OData
         /// </returns>
         protected virtual Task<ODataBatchReaderState> ReadAtChangesetStartImplementationAsync()
         {
-            return TaskUtils.GetTaskForSynchronousOperation(this.ReadAtChangesetStartImplementation);
+            try
+            {
+                return Task.FromResult(this.ReadAtChangesetStartImplementation());
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException<ODataBatchReaderState>(ex);
+            }
         }
 
         /// <summary>
@@ -445,7 +480,14 @@ namespace Microsoft.OData
         /// </returns>
         protected virtual Task<ODataBatchReaderState> ReadAtChangesetEndImplementationAsync()
         {
-            return TaskUtils.GetTaskForSynchronousOperation(this.ReadAtChangesetEndImplementation);
+            try
+            {
+                return Task.FromResult(this.ReadAtChangesetEndImplementation());
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException<ODataBatchReaderState>(ex);
+            }
         }
 
         /// <summary>

@@ -330,7 +330,14 @@ namespace Microsoft.OData.Json
         /// </remarks>
         protected override Task<bool> ReadAtResourceStartImplementationAsync()
         {
-            return TaskUtils.GetTaskForSynchronousOperation<bool>(this.ReadAtResourceStartImplementation);
+            try
+            {
+                return Task.FromResult(this.ReadAtResourceStartImplementation());
+            }
+            catch (Exception ex) when (ExceptionUtils.IsCatchableExceptionType(ex))
+            {
+                return Task.FromException<bool>(ex);
+            }
         }
 
         /// <summary>
@@ -2163,7 +2170,7 @@ namespace Microsoft.OData.Json
                             if (resourceType.TypeKind == EdmTypeKind.Primitive || resourceType.TypeKind == EdmTypeKind.Enum)
                             {
                                 // null primitive
-                                this.EnterScope(new JsonPrimitiveScope(new ODataNullValue(),
+                                this.EnterScope(new JsonPrimitiveScope(ODataNullValue.Instance,
                                     this.CurrentNavigationSource, this.CurrentResourceTypeReference, this.CurrentScope.ODataUri));
                             }
                             else
@@ -3637,7 +3644,7 @@ namespace Microsoft.OData.Json
                             {
                                 // null primitive
                                 this.EnterScope(new JsonPrimitiveScope(
-                                    new ODataNullValue(),
+                                    ODataNullValue.Instance,
                                     this.CurrentNavigationSource,
                                     this.CurrentResourceTypeReference,
                                     this.CurrentScope.ODataUri));
